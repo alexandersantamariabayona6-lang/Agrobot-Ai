@@ -1,106 +1,201 @@
-// api/diagnostico.js — Vercel (Node 18+, sin dependencias)
-// Tres modos: "detectar" (rápido, 1 fotograma), "diagnosticar" (varios fotogramas) y "preguntar" (solo texto)
 const MODELO = "gemini-3.8-flash";
 
-const DETECTAR = `Eres AgroBot AI, un asistente que guía por voz a una persona que apunta la cámara de su celular hacia una planta.
-Recibes UN fotograma. Responde SOLO con JSON válido:
-{
-  "hay_planta": boolean (hay una planta, árbol, hoja, flor o fruto claramente visible, de cualquier especie, en maceta, jardín, cultivo o foto en una pantalla),
-  "calidad_ok": boolean (la imagen está enfocada y se ven bien hojas, tallo o fruto),
-  "planta": "nombre común de la planta si lo reconoces, o cadena vacía",
-  "visible": "lo que ves, máximo 12 palabras, en español natural (ej: Veo hojas verdes con nervaduras amarillas)",
-  "guia": "instrucción corta de máximo 12 palabras para mover la cámara (ej: Acércate a una hoja). Si ya está bien: Perfecto, mantén la cámara quieta"
+const INSTRUCCIONES = `
+Eres Agrobot AI, un asistente especializado en agricultura.
+
+Tu función es ayudar a agricultores a identificar problemas en sus cultivos
+y brindar recomendaciones prácticas.
+
+Debes:
+- Identificar posibles enfermedades en las plantas.
+- Reconocer plagas y daños visibles.
+- Analizar síntomas como manchas, hojas amarillas y marchitamiento.
+- Recomendar posibles tratamientos.
+- Dar recomendaciones preventivas.
+- Explicar tus respuestas en español sencillo.
+
+IMPORTANTE:
+No afirmes que un diagnóstico es 100% seguro solamente con una fotografía.
+Si no tienes suficiente información, indícalo claramente.
+No inventes enfermedades ni tratamientos.
+Recomienda consultar a un profesional agrícola cuando sea necesario.
+`;
+
+function responder(res, status, data) {
+  return res.status(status).json(data);
 }
-Si no hay ninguna planta, hay_planta va en false y la guía debe ayudar a encontrar una. No inventes nada.`;
 
-const DIAGNOSTICAR = `Eres AgroBot AI, un agrónomo y fitopatólogo experto en toda clase de plantas: frutales, hortalizas, ornamentales, árboles y cultivos.
-Recibes varios fotogramas de la misma planta. Identifica la especie y evalúa su salud con evidencia visual:
-- Hojas: color, manchas (forma, borde, halo), bordes secos o quemados, enrollamiento, textura, agujeros, galerías.
-- Nervaduras: venas verdes con tejido amarillo entre ellas (clorosis intervenal, típico de hierro, magnesio o zinc), amarillamiento uniforme (nitrógeno), venas amarillas o necrosis.
-- Tallos y frutos: lesiones, cancros, pudriciones, deformaciones, exudados.
-- Plagas visibles: insectos, mielecilla, hongos, telarañas, polvo blanco.
-- Señales de agua: marchitez, hojas caídas o crujientes (falta), amarillamiento con base blanda (exceso).
-Responde SOLO con JSON válido:
-{
-  "es_planta": boolean,
-  "planta": "especie o nombre común más probable (di 'no estoy seguro' si dudas)",
-  "estado": "sana" | "con problemas" | "dudoso",
-  "diagnostico": "problema más probable en pocas palabras, o 'sin problemas aparentes'",
-  "confianza": número de 0 a 100,
-  "evidencia": ["máximo 3 cosas concretas que viste y apoyan el diagnóstico"],
-  "causas_posibles": ["máximo 3"],
-  "recomendaciones": ["máximo 3 acciones concretas y simples"],
-  "necesita_mas_info": "qué debería mostrar o contestar el usuario para estar más seguro. Cadena vacía si no hace falta",
-  "resumen_voz": "2 o 3 frases naturales para leer en voz alta: qué planta es, cómo está, qué tan seguro estás y qué hacer primero. Sin listas ni símbolos."
+function obtenerImagenes(body) {
+  if (!Array.isArray(body.imagenes)) {
+    return [];
+  }
+
+  return body.imagenes
+    .filter(imagen =>
+      typeof imagen === "string" &&
+      /^data:image\/(jpeg|jpg|png|webp);base64,/.test(imagen)
+    )
+    .slice(0, 4);
 }
-Español natural y breve. No inventes: si la imagen no alcanza, baja la confianza y dilo.`;
 
-const PREGUNTAR = `Eres AgroBot AI, un agrónomo amable que conversa por voz con el usuario sobre la planta que acaba de diagnosticar.
-Tienes los datos del diagnóstico y la conversación previa. Responde la pregunta apoyándote en ellos.
-Responde SOLO con JSON: { "respuesta": "2 a 4 frases naturales para leer en voz alta, sin listas ni símbolos" }
-Si el usuario te da información nueva (riego, sol, abono, clima), úsala para afinar tu opinión y di si cambia el diagnóstico.
-Si falta información, haz UNA pregunta corta. Si la pregunta no tiene que ver con plantas, redirige con amabilidad. No inventes datos. Si el problema parece grave, sugiere consultar a un ingeniero agrónomo.`;
-
-async function pedir(key, cuerpo) {
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${key}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) }
+function convertirImagen(imagen) {
+  const coincidencia = imagen.match(
+    /^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/
   );
-  return { status: r.status, ok: r.ok, data: await r.json() };
+
+  if (!coincidencia) {
+    throw new Error("Formato de imagen no válido.");
+  }
+
+  return {
+    inline_data: {
+      mime_type: "image/" + coincidencia[1],
+      data: coincidencia[2]
+    }
+  };
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Usa POST" });
+async function consultarGemini(contenido) {
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return res.status(500).json({ error: "Falta GEMINI_API_KEY en Vercel" });
+  if (!apiKey) {
+    throw new Error("No está configurada la variable GEMINI_API_KEY.");
+  }
+
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/" +
+    MODELO +
+    ":generateContent?key=" +
+    apiKey;
+
+  const respuesta = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      system_instruction: {
+        parts: [
+          {
+            text: INSTRUCCIONES
+          }
+        ]
+      },
+      contents: [
+        {
+          role: "user",
+          parts: contenido
+        }
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 1500
+      }
+    })
+  });
+
+  const datos = await respuesta.json();
+
+  if (!respuesta.ok) {
+    const mensaje =
+      datos.error?.message ||
+      "No fue posible consultar el servicio de inteligencia artificial.";
+
+    const error = new Error(mensaje);
+    error.status = respuesta.status;
+    throw error;
+  }
+
+  const texto = datos.candidates?.[0]?.content?.parts
+    ?.map(parte => parte.text || "")
+    .join("\n")
+    .trim();
+
+  if (!texto) {
+    throw new Error("La inteligencia artificial no generó una respuesta.");
+  }
+
+  return texto;
+}
+
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST") {
+    return responder(res, 405, {
+      error: "Método no permitido."
+    });
+  }
 
   try {
-    const { modo, imagenes, pregunta, contexto, historial } = req.body || {};
-    let sistema, partes, tokens, nivel;
+    const body = req.body || {};
+    const modo = body.modo;
 
-    if (modo === "preguntar") {
-      if (!pregunta) return res.status(400).json({ error: "Falta la pregunta" });
-      const hist = (Array.isArray(historial) ? historial : [])
-        .slice(-6)
-        .map((h) => `${h.rol === "usuario" ? "Usuario" : "AgroBot"}: ${String(h.texto).slice(0, 400)}`)
-        .join("\n");
-      sistema = PREGUNTAR;
-      partes = [{
-        text: `Diagnóstico de la planta (datos):\n${JSON.stringify(contexto || {}).slice(0, 3000)}\n\nConversación previa:\n${hist || "(ninguna)"}\n\nPregunta del usuario: ${String(pregunta).slice(0, 500)}`,
-      }];
-      tokens = 1024; nivel = "minimal";
+    let contenido = [];
+
+    if (modo === "diagnosticar" || modo === "detectar") {
+      const imagenes = obtenerImagenes(body);
+
+      if (imagenes.length === 0) {
+        return responder(res, 400, {
+          error: "Debes enviar al menos una imagen válida."
+        });
+      }
+
+      for (const imagen of imagenes) {
+        if (imagen.length > 7 * 1024 * 1024) {
+          return responder(res, 413, {
+            error: "Una de las imágenes es demasiado grande."
+          });
+        }
+
+        contenido.push(convertirImagen(imagen));
+      }
+
+      const instruccion = modo === "detectar"
+        ? "Observa la imagen e identifica qué planta o cultivo aparece. Describe brevemente su estado visible y posibles problemas."
+        : "Realiza un diagnóstico agrícola de las imágenes proporcionadas. Identifica la planta si es posible, describe los síntomas visibles, posibles enfermedades o plagas, causas probables, nivel de riesgo y recomendaciones de tratamiento y prevención. Aclara qué tan seguro es el diagnóstico.";
+
+      contenido.push({
+        text: instruccion
+      });
+
+    } else if (modo === "preguntar") {
+      const pregunta = String(body.pregunta || "").trim();
+
+      if (!pregunta) {
+        return responder(res, 400, {
+          error: "Debes escribir una pregunta."
+        });
+      }
+
+      if (pregunta.length > 2000) {
+        return responder(res, 400, {
+          error: "La pregunta es demasiado larga."
+        });
+      }
+
+      contenido.push({
+        text: pregunta
+      });
+
     } else {
-      if (!Array.isArray(imagenes) || !imagenes.length)
-        return res.status(400).json({ error: "Faltan las imágenes" });
-      const rapido = modo === "detectar";
-      sistema = rapido ? DETECTAR : DIAGNOSTICAR;
-      partes = imagenes.slice(0, 5).map((i) => ({
-        inlineData: { mimeType: "image/jpeg", data: String(i).replace(/^data:image\/\w+;base64,/, "") },
-      }));
-      partes.push({ text: rapido ? "Analiza este fotograma." : "Estos fotogramas son de la misma planta. Haz el diagnóstico." });
-      tokens = rapido ? 1024 : 2048; nivel = rapido ? "minimal" : "low";
+      return responder(res, 400, {
+        error: "Modo de operación no válido."
+      });
     }
 
-    const base = {
-      systemInstruction: { parts: [{ text: sistema }] },
-      contents: [{ parts: partes }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0.3, maxOutputTokens: tokens },
-    };
+    const resultado = await consultarGemini(contenido);
 
-    // Primero con poco "pensamiento" para que responda rápido.
-    // Si el modelo no acepta ese parámetro, reintenta sin él.
-    let r = await pedir(key, {
-      ...base,
-      generationConfig: { ...base.generationConfig, thinkingConfig: { thinkingLevel: nivel } },
+    return responder(res, 200, {
+      exito: true,
+      respuesta: resultado
     });
-    if (r.status === 400) r = await pedir(key, base);
 
-    if (!r.ok) return res.status(r.status).json({ error: r.data?.error?.message || "Error de la API" });
+  } catch (error) {
+    console.error("Error en Agrobot AI:", error);
 
-    const texto = r.data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "{}";
-    return res.status(200).json(JSON.parse(texto.replace(/```json|```/g, "").trim()));
-  } catch (e) {
-    return res.status(500).json({ error: "No se pudo analizar: " + e.message });
+    return responder(res, error.status || 500, {
+      exito: false,
+      error: error.message || "Error interno del servidor."
+    });
   }
-}
+};
