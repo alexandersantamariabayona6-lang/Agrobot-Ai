@@ -1,5 +1,5 @@
 // api/diagnostico.js — función serverless de Vercel (Node 18+, sin dependencias)
-const MODELO = "gemini-2.5-flash";
+const MODELO = "gemini-3.8-flash";
 
 const INSTRUCCIONES = `Eres AgroBot AI, un agrónomo experto en cítricos, especialmente limoneros.
 Recibes un fotograma de la cámara en vivo. Analiza hojas, tallos, frutos, suelo y el aspecto general del árbol.
