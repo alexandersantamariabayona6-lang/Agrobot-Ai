@@ -223,6 +223,21 @@
       color: var(--gris);
       font-size: 14px;
       margin-top: 12px;
+      min-height: 22px;
+    }
+
+    .cargando h2 {
+      margin-bottom: 8px;
+    }
+
+    .loader {
+      width: 68px;
+      height: 68px;
+      border: 5px solid #e3eee5;
+      border-top-color: var(--verde);
+      border-radius: 50%;
+      margin: 28px auto;
+      animation: girar .9s linear infinite;
     }
 
     .resultado {
@@ -753,14 +768,6 @@
 
     hablar("Perfecto. Ya recibí tu fotografía. Ahora voy a analizar tu planta.");
 
-    let paso = 0;
-
-    const animacion = setInterval(() => {
-      $("detalleCarga").textContent =
-        instruccionesCarga[paso % instruccionesCarga.length];
-
-      paso++;
-    }, 3500);
 
     try {
       const inicio = await llamarAPI({
@@ -776,7 +783,6 @@
 
       $("textoResultado").textContent = textoDiagnostico;
 
-      clearInterval(animacion);
 
       consultando = false;
 
@@ -793,7 +799,6 @@
       }, 2500);
 
     } catch (error) {
-      clearInterval(animacion);
       consultando = false;
 
       $("mensajeCarga").textContent = "No fue posible completar el análisis.";
