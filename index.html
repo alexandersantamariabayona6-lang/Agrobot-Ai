@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agrobot AI | Asistente agrícola</title>
+  <meta name="theme-color" content="#103d29">
+  <title>Agrobot AI</title>
 
   <style>
     :root {
-      --verde: #238636;
-      --verde-oscuro: #176329;
-      --fondo: #f4f8f2;
+      --verde: #176b43;
+      --verde-oscuro: #103d29;
+      --verde-claro: #e9f5ed;
+      --fondo: #f5f8f4;
       --blanco: #ffffff;
-      --texto: #1d2b20;
-      --suave: #647568;
-      --borde: #dce8dc;
-      --rojo: #d93025;
+      --texto: #203328;
+      --gris: #718078;
+      --borde: #dce8de;
     }
 
     * {
@@ -27,176 +28,315 @@
       font-family: Arial, sans-serif;
       background: var(--fondo);
       color: var(--texto);
+      min-height: 100vh;
     }
 
     header {
       background: var(--verde-oscuro);
       color: white;
-      padding: 18px 7%;
+      padding: 20px;
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 15px;
+      align-items: center;
     }
 
-    header h1 {
-      font-size: 23px;
+    .logo {
+      font-size: 25px;
+      font-weight: bold;
     }
 
-    header span {
+    .logo span {
+      color: #e7c94b;
+    }
+
+    .estado-header {
       font-size: 13px;
-      opacity: .85;
+      color: #c7ddce;
     }
 
     main {
-      max-width: 950px;
-      margin: 35px auto;
-      padding: 0 18px;
+      max-width: 760px;
+      margin: 25px auto;
+      padding: 0 16px 35px;
     }
 
-    .panel {
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+      animation: aparecer .3s ease;
+    }
+
+    @keyframes aparecer {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card {
       background: var(--blanco);
-      border: 1px solid var(--borde);
-      border-radius: 16px;
       padding: 25px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 15px #00000008;
+      border: 1px solid var(--borde);
+      border-radius: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 5px 20px #193d2010;
+    }
+
+    h1 {
+      font-size: 27px;
+      margin-bottom: 12px;
     }
 
     h2 {
+      font-size: 21px;
       margin-bottom: 12px;
-      font-size: 22px;
     }
 
     p {
-      color: var(--suave);
+      color: var(--gris);
       line-height: 1.6;
     }
 
-    .camara {
+    button {
+      border: none;
+      padding: 15px 18px;
+      border-radius: 12px;
+      background: var(--verde);
+      color: white;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    button.secundario {
+      background: var(--verde-claro);
+      color: var(--verde-oscuro);
+    }
+
+    button.ancho {
       width: 100%;
-      background: #17251a;
-      border-radius: 13px;
+      margin-top: 15px;
+    }
+
+    button.oscuro {
+      background: var(--verde-oscuro);
+    }
+
+    .bienvenida {
+      text-align: center;
+      padding: 35px 22px;
+    }
+
+    .planta-icono {
+      font-size: 75px;
+      margin: 20px 0;
+    }
+
+    .bienvenida p {
+      max-width: 450px;
+      margin: 0 auto;
+    }
+
+    .camara {
+      background: #102319;
+      border-radius: 16px;
       overflow: hidden;
       margin: 18px 0;
-      min-height: 220px;
+      min-height: 250px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
     video {
-      width: 100%;
-      max-height: 430px;
-      object-fit: cover;
       display: none;
+      width: 100%;
+      max-height: 500px;
+      object-fit: cover;
     }
 
-    .camara-vacia {
+    .camara-mensaje {
       color: white;
       text-align: center;
-      padding: 35px;
+      padding: 30px;
     }
 
-    button {
-      border: none;
-      border-radius: 9px;
-      padding: 13px 18px;
-      cursor: pointer;
+    .camara-mensaje div {
+      font-size: 55px;
+      margin-bottom: 12px;
+    }
+
+    .controles {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .controles button {
+      flex: 1;
+      min-width: 130px;
+    }
+
+    .vista-foto {
+      width: 100%;
+      max-height: 440px;
+      object-fit: contain;
+      background: #14271b;
+      border-radius: 14px;
+      margin: 15px 0;
+    }
+
+    .cargando {
+      text-align: center;
+      padding: 40px 15px;
+    }
+
+    .loader {
+      width: 75px;
+      height: 75px;
+      border: 7px solid #e3eee5;
+      border-top-color: var(--verde);
+      border-radius: 50%;
+      margin: 25px auto;
+      animation: girar 1s linear infinite;
+    }
+
+    @keyframes girar {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .paso-analisis {
+      color: var(--gris);
       font-size: 14px;
-      font-weight: bold;
-      margin: 5px 4px 5px 0;
-      background: var(--verde);
-      color: white;
-    }
-
-    button:hover {
-      background: var(--verde-oscuro);
-    }
-
-    button:disabled {
-      opacity: .5;
-      cursor: not-allowed;
-    }
-
-    .secundario {
-      background: #e8f2e8;
-      color: var(--verde-oscuro);
-    }
-
-    .secundario:hover {
-      background: #d8ead8;
-    }
-
-    .peligro {
-      background: #fdebea;
-      color: var(--rojo);
+      margin-top: 12px;
     }
 
     .resultado {
-      display: none;
       white-space: pre-wrap;
-      line-height: 1.7;
-      margin-top: 18px;
-      padding: 18px;
-      border-radius: 10px;
-      background: #f1f7ef;
-      border: 1px solid var(--borde);
-    }
-
-    .estado {
-      margin-top: 12px;
-      font-size: 14px;
-      color: var(--suave);
-    }
-
-    .aviso {
-      font-size: .75rem;
-      color: var(--suave);
-      margin-top: 12px;
-    }
-
-    .chat {
-      display: flex;
-      gap: 8px;
+      line-height: 1.75;
+      font-size: 15px;
+      color: var(--texto);
       margin-top: 15px;
     }
 
-    .chat input {
+    .etiqueta {
+      display: inline-block;
+      background: var(--verde-claro);
+      color: var(--verde);
+      padding: 7px 12px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 12px;
+    }
+
+    .chat-mensajes {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .mensaje {
+      padding: 13px 15px;
+      border-radius: 14px;
+      max-width: 90%;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+
+    .mensaje.usuario {
+      background: var(--verde);
+      color: white;
+      align-self: flex-end;
+    }
+
+    .mensaje.agrobot {
+      background: var(--verde-claro);
+      color: var(--texto);
+      align-self: flex-start;
+    }
+
+    .entrada-chat {
+      display: flex;
+      gap: 8px;
+    }
+
+    .entrada-chat input {
       flex: 1;
       min-width: 0;
-      padding: 13px;
+      padding: 14px;
       border: 1px solid var(--borde);
-      border-radius: 9px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 15px;
+    }
+
+    .estado {
+      font-size: 13px;
+      margin-top: 12px;
+      color: var(--gris);
+    }
+
+    .error {
+      color: #b42318;
+    }
+
+    .botones-secundarios {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 15px;
+    }
+
+    .botones-secundarios button {
+      flex: 1;
     }
 
     footer {
       text-align: center;
-      color: var(--suave);
+      color: var(--gris);
       font-size: 12px;
-      padding: 25px;
+      padding: 20px;
     }
 
-    @media (max-width: 600px) {
+    @media (max-width: 500px) {
       header {
-        padding: 15px 5%;
+        padding: 17px;
+      }
+
+      .logo {
+        font-size: 22px;
       }
 
       main {
-        margin-top: 20px;
+        margin-top: 15px;
       }
 
-      .panel {
-        padding: 18px;
+      .card {
+        padding: 19px;
       }
 
-      .chat {
-        flex-direction: column;
+      .entrada-chat {
+        flex-wrap: wrap;
       }
 
-      .chat button {
-        width: 100%;
+      .entrada-chat input {
+        flex-basis: 100%;
       }
     }
   </style>
@@ -204,327 +344,684 @@
 
 <body>
 
-  <header>
-    <div>
-      <h1>🌱 Agrobot AI</h1>
-      <span>Asistente inteligente para el diagnóstico agrícola</span>
-    </div>
-  </header>
+<header>
+  <div class="logo">Agrobot <span>AI</span></div>
+  <div class="estado-header" id="estadoHeader">Tu asistente agrícola</div>
+</header>
 
-  <main>
+<main>
 
-    <section class="panel">
-      <h2>Diagnóstico de cultivos</h2>
+  <!-- PANTALLA 1: BIENVENIDA -->
+
+  <section id="pantallaInicio" class="screen active">
+    <div class="card bienvenida">
+      <div class="planta-icono">🌱</div>
+
+      <h1>¡Bienvenido a Agrobot AI!</h1>
+
       <p>
-        Utiliza la cámara para observar tu cultivo. Agrobot AI analizará
-        las imágenes e identificará posibles problemas en las plantas.
+        Soy tu asistente agrícola inteligente. Puedo ayudarte a
+        identificar problemas en tus plantas, detectar posibles
+        enfermedades y recomendarte cómo cuidarlas.
+      </p>
+
+      <button class="ancho" onclick="iniciarExperiencia()">
+        Comenzar
+      </button>
+
+      <p class="estado">
+        Para comenzar, permite el acceso a la cámara y al micrófono.
+      </p>
+    </div>
+  </section>
+
+
+  <!-- PANTALLA 2: CAMARA -->
+
+  <section id="pantallaCamara" class="screen">
+    <div class="card">
+      <span class="etiqueta">PASO 1 · CAPTURA</span>
+
+      <h2>Enfoquemos tu planta</h2>
+
+      <p>
+        Coloca la cámara frente a la hoja o parte de la planta
+        que deseas analizar.
       </p>
 
       <div class="camara">
-        <div class="camara-vacia" id="camaraVacia">
-          <div style="font-size:45px;">📷</div>
-          <p style="color:white;">La cámara aparecerá aquí</p>
+        <div class="camara-mensaje" id="mensajeCamara">
+          <div>📷</div>
+          <p style="color:white;">Preparando cámara...</p>
         </div>
 
-        <video id="video" autoplay playsinline muted></video>
+        <video id="video" autoplay muted playsinline></video>
       </div>
 
-      <button id="btnCamara" onclick="iniciarCamara()">
-        Activar cámara
-      </button>
+      <div class="controles">
+        <button id="btnFoto" onclick="tomarFoto()" disabled>
+          📸 Tomar fotografía
+        </button>
 
-      <button class="secundario" onclick="apagarCamara()">
-        Apagar cámara
-      </button>
+        <button class="secundario" onclick="cambiarCamara()">
+          Cambiar cámara
+        </button>
+      </div>
 
-      <button id="btnDiagnostico" onclick="buscar()">
-        Analizar cultivo
-      </button>
+      <p class="estado" id="estadoCamara">
+        Esperando cámara...
+      </p>
+    </div>
+  </section>
 
-      <p class="estado" id="estado">
-        Esperando para iniciar...
+
+  <!-- PANTALLA 3: ANALIZANDO -->
+
+  <section id="pantallaCarga" class="screen">
+    <div class="card cargando">
+      <span class="etiqueta">PASO 2 · INTELIGENCIA ARTIFICIAL</span>
+
+      <h2>Estamos analizando tu planta</h2>
+
+      <div class="loader"></div>
+
+      <p id="mensajeCarga">
+        Enviando fotografía a Agrobot AI...
       </p>
 
-      <p class="aviso">
-        Para obtener mejores resultados, enfoca la hoja o la parte de la
-        planta que deseas analizar y procura tener buena iluminación.
+      <p class="paso-analisis" id="detalleCarga">
+        La inteligencia artificial está examinando la imagen.
       </p>
-    </section>
 
-    <section class="panel">
-      <h2>Resultado del análisis</h2>
-      <p>Los resultados aparecerán en este espacio.</p>
+      <p class="estado">
+        Este proceso puede tardar un poco. No cierres esta página.
+      </p>
+    </div>
+  </section>
 
-      <div id="resultado" class="resultado"></div>
-    </section>
 
-    <section class="panel">
-      <h2>💬 Pregúntale a Agrobot</h2>
+  <!-- PANTALLA 4: RESULTADO -->
+
+  <section id="pantallaResultado" class="screen">
+    <div class="card">
+      <span class="etiqueta">PASO 3 · DIAGNÓSTICO</span>
+
+      <h2>🌿 Resultado del análisis</h2>
+
+      <div id="textoResultado" class="resultado"></div>
+
+      <div class="botones-secundarios">
+        <button class="secundario" onclick="leerResultado()">
+          🔊 Escuchar diagnóstico
+        </button>
+
+        <button class="secundario" onclick="detenerVoz()">
+          ⏹ Detener voz
+        </button>
+      </div>
+
+      <button class="ancho" onclick="abrirChat()">
+        💬 Hablar con Agrobot
+      </button>
+
+      <button class="ancho secundario" onclick="nuevaFoto()">
+        📸 Analizar otra planta
+      </button>
+    </div>
+  </section>
+
+
+  <!-- PANTALLA 5: CHAT -->
+
+  <section id="pantallaChat" class="screen">
+    <div class="card">
+      <span class="etiqueta">ASISTENTE AGRÍCOLA</span>
+
+      <h2>💬 Conversa con Agrobot</h2>
+
       <p>
-        También puedes realizar preguntas sobre enfermedades,
-        plagas, fertilización y cuidado de tus cultivos.
+        Puedes preguntarme cualquier cosa sobre el diagnóstico
+        que acabamos de realizar.
       </p>
 
-      <div class="chat">
+      <div id="mensajes" class="chat-mensajes"></div>
+
+      <div class="entrada-chat">
         <input
-          type="text"
           id="pregunta"
-          placeholder="Ejemplo: ¿Cómo puedo cuidar mis plantas?"
-          onkeydown="if(event.key==='Enter') preguntar()"
+          type="text"
+          placeholder="Escribe tu pregunta..."
+          onkeydown="if(event.key==='Enter') enviarPregunta()"
         >
 
-        <button onclick="preguntar()">Enviar pregunta</button>
+        <button onclick="enviarPregunta()">Enviar</button>
       </div>
 
-      <button class="secundario" id="btnMic" onclick="voz()">
-        🎙️ Hablar
-      </button>
+      <div class="botones-secundarios">
+        <button class="secundario" id="btnVoz" onclick="escucharPregunta()">
+          🎙️ Hablar
+        </button>
+
+        <button class="secundario" onclick="detenerVoz()">
+          ⏹ Detener voz
+        </button>
+      </div>
 
       <p class="estado" id="estadoChat"></p>
-      <div id="respuestaChat" class="resultado"></div>
-    </section>
 
-  </main>
+      <button class="ancho secundario" onclick="volverResultado()">
+        Volver al diagnóstico
+      </button>
+    </div>
+  </section>
 
-  <footer>
-    Agrobot AI · Tecnología e inteligencia artificial aplicada a la agricultura
-  </footer>
+</main>
 
-  <script>
-    const $ = id => document.getElementById(id);
+<footer>
+  Agrobot AI · Inteligencia artificial aplicada a la agricultura
+</footer>
 
-    let stream = null;
-    let reconociendo = false;
-    let reconocimiento = null;
 
-    async function iniciarCamara() {
-      try {
-        if (stream) apagarCamara();
+<script>
+  const $ = id => document.getElementById(id);
 
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: false
-        });
+  let stream = null;
+  let camaraFrontal = false;
+  let fotoActual = null;
 
-        $("video").srcObject = stream;
-        $("video").style.display = "block";
-        $("camaraVacia").style.display = "none";
+  let interaccionId = null;
+  let reconociendo = false;
+  let reconocimiento = null;
 
-        $("estado").textContent = "Cámara activada correctamente.";
-      } catch (error) {
-        $("estado").textContent =
-          "No fue posible acceder a la cámara. Verifica los permisos del navegador.";
-      }
+  let textoDiagnostico = "";
+  let consultando = false;
+
+  const instruccionesCarga = [
+    "Examinando las características de las hojas...",
+    "Identificando posibles enfermedades...",
+    "Revisando síntomas y señales visibles...",
+    "Preparando recomendaciones para tu cultivo..."
+  ];
+
+
+  // CAMBIO DE PANTALLAS
+
+  function mostrarPantalla(id) {
+    document.querySelectorAll(".screen").forEach(pantalla => {
+      pantalla.classList.remove("active");
+    });
+
+    $(id).classList.add("active");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }
+
+
+  // VOZ DE AGROBOT
+
+  function hablar(texto) {
+    if (!("speechSynthesis" in window)) return;
+
+    window.speechSynthesis.cancel();
+
+    const mensaje = new SpeechSynthesisUtterance(texto);
+
+    mensaje.lang = "es-CO";
+    mensaje.rate = 0.95;
+    mensaje.pitch = 1;
+
+    const voces = window.speechSynthesis.getVoices();
+
+    const vozEspanol = voces.find(voz =>
+      voz.lang.toLowerCase().startsWith("es")
+    );
+
+    if (vozEspanol) {
+      mensaje.voice = vozEspanol;
     }
 
-    function apagarCamara() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-      }
+    window.speechSynthesis.speak(mensaje);
+  }
 
+  function detenerVoz() {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    if (reconocimiento && reconociendo) {
+      reconocimiento.stop();
+    }
+  }
+
+  function leerResultado() {
+    if (textoDiagnostico) {
+      hablar(textoDiagnostico);
+    }
+  }
+
+
+  // CAMARA
+
+  async function iniciarExperiencia() {
+    detenerVoz();
+
+    try {
+      await activarCamara();
+
+      mostrarPantalla("pantallaCamara");
+
+      hablar(
+        "¡Hola! Soy Agrobot, tu asistente agrícola. " +
+        "La cámara está activada. Cuando estés listo, " +
+        "toma una fotografía de tu planta para comenzar el análisis."
+      );
+
+    } catch (error) {
+      alert(
+        "No pude activar la cámara. Revisa los permisos del navegador " +
+        "y vuelve a intentarlo."
+      );
+    }
+  }
+
+  async function activarCamara() {
+    apagarCamara();
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: camaraFrontal ? "user" : "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 960 }
+      }
+    });
+
+    $("video").srcObject = stream;
+    $("video").style.display = "block";
+    $("mensajeCamara").style.display = "none";
+
+    await $("video").play();
+
+    $("btnFoto").disabled = false;
+    $("estadoCamara").textContent = "Cámara activada. Lista para tomar la fotografía.";
+
+    $("estadoHeader").textContent = "Cámara activada";
+  }
+
+  function apagarCamara() {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+
+    if ($("video")) {
       $("video").srcObject = null;
       $("video").style.display = "none";
-      $("camaraVacia").style.display = "block";
-
-      $("estado").textContent = "Cámara apagada.";
     }
 
-    function capturarImagen(anchoMaximo = 720) {
-      const video = $("video");
+    if ($("mensajeCamara")) {
+      $("mensajeCamara").style.display = "block";
+    }
+  }
 
-      if (!video.videoWidth || !video.videoHeight) {
-        throw new Error("La cámara todavía no está lista.");
-      }
+  async function cambiarCamara() {
+    camaraFrontal = !camaraFrontal;
 
-      const canvas = document.createElement("canvas");
+    try {
+      await activarCamara();
+    } catch (error) {
+      $("estadoCamara").textContent = "No fue posible cambiar la cámara.";
+    }
+  }
 
-      const escala = Math.min(
-        1,
-        anchoMaximo / video.videoWidth
-      );
 
-      canvas.width = Math.round(video.videoWidth * escala);
-      canvas.height = Math.round(video.videoHeight * escala);
+  // CAPTURAR FOTOGRAFIA
 
-      const contexto = canvas.getContext("2d");
-
-      contexto.drawImage(
-        video,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-
-      return canvas.toDataURL("image/jpeg", 0.62);
+  function tomarFoto() {
+    if (!stream || !$("video").videoWidth) {
+      alert("La cámara todavía no está lista.");
+      return;
     }
 
-    function esperar(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+    const video = $("video");
+    const canvas = document.createElement("canvas");
+
+    const anchoMaximo = 1024;
+
+    const escala = Math.min(
+      1,
+      anchoMaximo / video.videoWidth
+    );
+
+    canvas.width = Math.round(video.videoWidth * escala);
+    canvas.height = Math.round(video.videoHeight * escala);
+
+    const contexto = canvas.getContext("2d");
+
+    contexto.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    fotoActual = canvas.toDataURL("image/jpeg", 0.72);
+
+    apagarCamara();
+
+    iniciarAnalisis();
+  }
+
+
+  // COMUNICACION CON EL BACKEND
+
+  async function llamarAPI(datos) {
+    const respuesta = await fetch("/api/diagnostico", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(datos)
+    });
+
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(
+        resultado.error || "No fue posible comunicarse con Agrobot."
+      );
     }
 
-    async function enviarDiagnostico(modo, imagenes, pregunta = "") {
-      const controlador = new AbortController();
+    return resultado;
+  }
 
-      const temporizador = setTimeout(
-        () => controlador.abort(),
-        45000
+
+  // INICIAR DIAGNOSTICO EN SEGUNDO PLANO
+
+  async function iniciarAnalisis() {
+    if (consultando) return;
+
+    consultando = true;
+
+    mostrarPantalla("pantallaCarga");
+
+    $("estadoHeader").textContent = "Analizando planta";
+
+    hablar("Perfecto. Ya recibí tu fotografía. Ahora voy a analizar tu planta.");
+
+    let paso = 0;
+
+    const animacion = setInterval(() => {
+      $("detalleCarga").textContent =
+        instruccionesCarga[paso % instruccionesCarga.length];
+
+      paso++;
+    }, 3500);
+
+    try {
+      const inicio = await llamarAPI({
+        accion: "iniciar",
+        imagen: fotoActual
+      });
+
+      interaccionId = inicio.interactionId;
+
+      const resultado = await esperarResultado(interaccionId);
+
+      textoDiagnostico = resultado.respuesta;
+
+      $("textoResultado").textContent = textoDiagnostico;
+
+      clearInterval(animacion);
+
+      consultando = false;
+
+      mostrarPantalla("pantallaResultado");
+
+      $("estadoHeader").textContent = "Diagnóstico terminado";
+
+      hablar(
+        "Tu análisis está listo. Voy a leerte los resultados."
       );
+
+      setTimeout(() => {
+        leerResultado();
+      }, 2500);
+
+    } catch (error) {
+      clearInterval(animacion);
+      consultando = false;
+
+      $("mensajeCarga").textContent = "No fue posible completar el análisis.";
+      $("detalleCarga").textContent = error.message;
+
+      hablar("No pude terminar el análisis. Puedes intentarlo nuevamente.");
+
+      setTimeout(() => {
+        mostrarPantalla("pantallaCamara");
+        activarCamara().catch(() => {});
+      }, 3500);
+    }
+  }
+
+
+  // CONSULTAR ESTADO DEL ANALISIS
+
+  async function esperarResultado(id) {
+    let erroresConsecutivos = 0;
+
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 2500));
 
       try {
-        const respuesta = await fetch("/api/diagnostico", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            modo: modo,
-            imagenes: imagenes,
-            pregunta: pregunta
-          }),
-          signal: controlador.signal
+        const estado = await llamarAPI({
+          accion: "estado",
+          interactionId: id
         });
 
-        const datos = await respuesta.json();
+        erroresConsecutivos = 0;
 
-        if (!respuesta.ok) {
-          throw new Error(datos.error || "Error al procesar la solicitud.");
+        if (estado.status === "completed") {
+          if (!estado.respuesta) {
+            throw new Error("Gemini terminó, pero no devolvió un diagnóstico.");
+          }
+
+          return estado;
         }
 
-        return datos;
-      } finally {
-        clearTimeout(temporizador);
-      }
-    }
+        if (
+          estado.status === "failed" ||
+          estado.status === "cancelled"
+        ) {
+          throw new Error(
+            estado.error || "Gemini no pudo completar el análisis."
+          );
+        }
 
-    async function buscar() {
-      if (!stream) {
-        $("estado").textContent = "Primero debes activar la cámara.";
-        return;
-      }
-
-      $("btnDiagnostico").disabled = true;
-      $("resultado").style.display = "none";
-
-      try {
-        $("estado").textContent = "Analizando el cultivo...";
-
-        const imagenes = [];
-
-        imagenes.push(capturarImagen(720));
-
-        await esperar(450);
-
-        imagenes.push(capturarImagen(720));
-
-        $("estado").textContent = "Consultando inteligencia artificial...";
-
-        const datos = await enviarDiagnostico(
-          "diagnosticar",
-          imagenes
-        );
-
-        $("resultado").textContent =
-          datos.respuesta || datos.resultado || "No se recibió una respuesta.";
-
-        $("resultado").style.display = "block";
-
-        $("estado").textContent = "Análisis finalizado correctamente.";
-
+        $("mensajeCarga").textContent =
+          "Agrobot está trabajando. Esperando los resultados...";
       } catch (error) {
-        $("estado").textContent =
-          error.name === "AbortError"
-            ? "El análisis tardó demasiado. Intenta nuevamente."
-            : error.message;
+        erroresConsecutivos++;
 
-      } finally {
-        $("btnDiagnostico").disabled = false;
+        if (erroresConsecutivos >= 6) {
+          throw error;
+        }
       }
     }
+  }
 
-    async function preguntar() {
-      const pregunta = $("pregunta").value.trim();
 
-      if (!pregunta) {
-        $("estadoChat").textContent = "Escribe una pregunta primero.";
-        return;
-      }
+  // NUEVA FOTOGRAFIA
 
-      $("estadoChat").textContent = "Agrobot está pensando...";
-      $("respuestaChat").style.display = "none";
+  async function nuevaFoto() {
+    detenerVoz();
 
-      try {
-        const datos = await enviarDiagnostico(
-          "preguntar",
-          [],
-          pregunta
-        );
+    textoDiagnostico = "";
+    interaccionId = null;
+    fotoActual = null;
 
-        const respuesta =
-          datos.respuesta || datos.resultado || "No se recibió una respuesta.";
+    $("estadoHeader").textContent = "Preparando cámara";
 
-        $("respuestaChat").textContent = respuesta;
-        $("respuestaChat").style.display = "block";
+    mostrarPantalla("pantallaCamara");
 
-        $("estadoChat").textContent = "Respuesta recibida.";
+    try {
+      await activarCamara();
 
-      } catch (error) {
-        $("estadoChat").textContent = error.message;
-      }
+      hablar("Vamos a analizar otra planta. Enfócala y toma una fotografía.");
+    } catch (error) {
+      $("estadoCamara").textContent = "No fue posible activar la cámara.";
+    }
+  }
+
+
+  // CHAT CON CONTEXTO DEL DIAGNOSTICO
+
+  function abrirChat() {
+    detenerVoz();
+
+    mostrarPantalla("pantallaChat");
+
+    if (!$("mensajes").children.length) {
+      agregarMensaje(
+        "agrobot",
+        "¡Aquí estoy! Ya tengo presente el diagnóstico de tu planta. " +
+        "Puedes preguntarme sobre el tratamiento, los cuidados o la prevención."
+      );
+
+      hablar(
+        "Aquí estoy. Ya tengo presente el diagnóstico de tu planta. " +
+        "¿Qué te gustaría saber?"
+      );
+    }
+  }
+
+  function volverResultado() {
+    detenerVoz();
+    mostrarPantalla("pantallaResultado");
+  }
+
+  function agregarMensaje(tipo, texto) {
+    const mensaje = document.createElement("div");
+
+    mensaje.className = "mensaje " + tipo;
+    mensaje.textContent = texto;
+
+    $("mensajes").appendChild(mensaje);
+
+    mensaje.scrollIntoView({
+      behavior: "smooth",
+      block: "end"
+    });
+  }
+
+  async function enviarPregunta() {
+    const pregunta = $("pregunta").value.trim();
+
+    if (!pregunta || !interaccionId) return;
+
+    $("pregunta").value = "";
+
+    agregarMensaje("usuario", pregunta);
+
+    $("estadoChat").textContent = "Agrobot está preparando una respuesta...";
+
+    $("estadoHeader").textContent = "Respondiendo";
+
+    try {
+      const inicio = await llamarAPI({
+        accion: "preguntar",
+        interactionId: interaccionId,
+        pregunta: pregunta
+      });
+
+      const resultado = await esperarResultado(inicio.interactionId);
+
+      interaccionId = inicio.interactionId;
+
+      agregarMensaje("agrobot", resultado.respuesta);
+
+      $("estadoChat").textContent = "Respuesta recibida.";
+
+      $("estadoHeader").textContent = "Conversando";
+
+      hablar(resultado.respuesta);
+
+    } catch (error) {
+      agregarMensaje(
+        "agrobot",
+        "No pude completar tu respuesta: " + error.message
+      );
+
+      $("estadoChat").textContent = error.message;
+    }
+  }
+
+
+  // RECONOCIMIENTO DE VOZ
+
+  function escucharPregunta() {
+    const SpeechRecognition =
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      $("estadoChat").textContent =
+        "Tu navegador no admite reconocimiento de voz. Puedes escribir tu pregunta.";
+      return;
     }
 
-    function voz() {
-      const SpeechRecognition =
-        window.SpeechRecognition ||
-        window.webkitSpeechRecognition;
-
-      if (!SpeechRecognition) {
-        $("estadoChat").textContent =
-          "Tu navegador no permite reconocimiento de voz.";
-        return;
-      }
-
-      if (reconociendo) {
-        reconocimiento.stop();
-        return;
-      }
-
-      reconocimiento = new SpeechRecognition();
-      reconocimiento.lang = "es-CO";
-      reconocimiento.continuous = false;
-      reconocimiento.interimResults = false;
-
-      reconocimiento.onstart = function() {
-        reconociendo = true;
-        $("btnMic").textContent = "🔴 Escuchando...";
-        $("estadoChat").textContent = "Habla ahora...";
-      };
-
-      reconocimiento.onresult = function(event) {
-        const texto = event.results[0][0].transcript;
-        $("pregunta").value = texto;
-        preguntar();
-      };
-
-      reconocimiento.onerror = function() {
-        $("estadoChat").textContent = "No fue posible reconocer tu voz.";
-      };
-
-      reconocimiento.onend = function() {
-        reconociendo = false;
-        $("btnMic").textContent = "🎙️ Hablar";
-      };
-
-      reconocimiento.start();
+    if (reconociendo) {
+      reconocimiento.stop();
+      return;
     }
 
-    window.addEventListener("beforeunload", apagarCamara);
-  </script>
+    reconocimiento = new SpeechRecognition();
+
+    reconocimiento.lang = "es-CO";
+    reconocimiento.continuous = false;
+    reconocimiento.interimResults = false;
+
+    reconocimiento.onstart = function() {
+      reconociendo = true;
+
+      $("btnVoz").textContent = "🔴 Escuchando...";
+      $("estadoChat").textContent = "Te estoy escuchando...";
+    };
+
+    reconocimiento.onresult = function(event) {
+      const texto = event.results[0][0].transcript;
+
+      $("pregunta").value = texto;
+
+      enviarPregunta();
+    };
+
+    reconocimiento.onerror = function() {
+      $("estadoChat").textContent =
+        "No pude reconocer tu voz. Intenta nuevamente o escribe tu pregunta.";
+    };
+
+    reconocimiento.onend = function() {
+      reconociendo = false;
+      $("btnVoz").textContent = "🎙️ Hablar";
+    };
+
+    reconocimiento.start();
+  }
+
+
+  // LIMPIEZA
+
+  window.addEventListener("beforeunload", () => {
+    apagarCamara();
+    detenerVoz();
+  });
+
+</script>
 
 </body>
 </html>
