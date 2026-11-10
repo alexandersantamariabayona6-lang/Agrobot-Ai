@@ -64,6 +64,17 @@
   .acciones button { flex:1; }
   .error { color:#ffb4a0; font-size:.9rem; padding:6px 16px; }
   .aviso { font-size:.75rem; color:var(--suave); }
+  .tag { display:inline-block; font-size:.8rem; padding:3px 10px; border-radius:99px; background:#d6e0d0; margin-bottom:8px; }
+  .chat { display:flex; flex-direction:column; gap:8px; }
+  .msg { padding:10px 12px; border-radius:12px; font-size:.93rem; line-height:1.4; max-width:88%; }
+  .msg.u { align-self:flex-end; background:var(--limon); color:var(--hoja); }
+  .msg.a { align-self:flex-start; background:var(--medio); }
+  .fila-pregunta { display:flex; gap:8px; }
+  .fila-pregunta input { flex:1; min-width:0; font:inherit; padding:12px; border-radius:10px; border:0;
+    background:var(--papel); color:var(--hoja); }
+  .fila-pregunta input:focus-visible { outline:3px solid var(--limon); }
+  .fila-pregunta button { padding:12px 14px; }
+  #btnMic.grabando { background:var(--alerta); }
 </style>
 </head>
 <body>
@@ -74,8 +85,8 @@
   </header>
 
   <section class="pantalla" id="p-inicio">
-    <h2>Muéstrame tu limonero y te cuento qué tiene.</h2>
-    <p>Te voy a ir guiando con la voz. Sube el volumen del celular, abre la cámara y apúntala hacia el árbol.</p>
+    <h2>Muéstrame cualquier planta y te cuento cómo está.</h2>
+    <p>Sirve con árboles, matas, hojas o frutos. Te voy a ir guiando con la voz. Sube el volumen del celular y apunta la cámara hacia la planta.</p>
     <button class="principal" id="btnEmpezar">Empezar</button>
   </section>
 
@@ -100,6 +111,12 @@
 
   <section class="pantalla" id="p-resultado">
     <div id="resultado"></div>
+    <div class="chat" id="chat" aria-live="polite"></div>
+    <div class="fila-pregunta">
+      <input id="txtPregunta" type="text" placeholder="Pregúntame algo sobre la planta" autocomplete="off">
+      <button class="sec" id="btnMic" aria-label="Preguntar con la voz">Hablar</button>
+      <button class="principal" id="btnEnviar">Enviar</button>
+    </div>
     <div class="acciones">
       <button class="sec" id="btnRepetir">Repetir voz</button>
       <button class="principal" id="btnOtro">Escanear otro</button>
@@ -117,6 +134,7 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const video = $("video"), canvas = $("canvas");
 let stream = null, sesion = 0, vozOn = true, obs = [], ultimoResumen = "", timerEspera = null;
+let diagnostico = null, historial = [];
 
 /* ---------- voz ---------- */
 function hablar(texto) {
@@ -156,14 +174,14 @@ function capturar(ancho) {
 }
 
 /* ---------- servidor ---------- */
-async function llamar(modo, imagenes) {
+async function llamar(modo, imagenes, extra = {}) {
   const ctrl = new AbortController();
   const corte = setTimeout(() => ctrl.abort(), 50000);
   try {
     const r = await fetch("/api/diagnostico", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modo, imagenes }),
+      body: JSON.stringify({ modo, imagenes, ...extra }),
       signal: ctrl.signal,
     });
     const txt = await r.text();
@@ -183,7 +201,7 @@ async function iniciar() {
   $("errEscaneo").hidden = true;
   cambiar("escaneo");
   subtitulo("Iniciando cámara…");
-  setEstado("Buscando el limonero");
+  setEstado("Buscando una planta");
   try { await abrirCamara(); }
   catch (e) {
     cambiar("inicio");
@@ -191,8 +209,8 @@ async function iniciar() {
     alert("No pude abrir la cámara: " + e.message + "\nRevisa el permiso y que la página use https.");
     return;
   }
-  subtitulo("Apunta la cámara hacia el limonero.");
-  hablar("Cámara lista. Apunta hacia el limonero y yo te voy guiando.");
+  subtitulo("Apunta la cámara hacia una planta.");
+  hablar("Cámara lista. Apunta hacia una planta, una hoja o un fruto, y yo te voy guiando.");
   await dormir(3500);
   await buscar(mi);
 }
@@ -204,10 +222,10 @@ async function buscar(mi) {
       const d = await llamar("detectar", [capturar(512)]);
       if (mi !== sesion) return;
       $("errEscaneo").hidden = true;
-      const frase = d.es_limonero ? `${d.visible}. ${d.guia}` : `No veo el limonero. ${d.guia}`;
+      const frase = d.hay_planta ? `${d.visible}. ${d.guia}` : `No veo ninguna planta. ${d.guia}`;
       subtitulo(frase);
-      if (d.es_limonero && d.visible && !obs.includes(d.visible)) obs.push(d.visible);
-      seguidos = d.es_limonero && d.calidad_ok ? seguidos + 1 : 0;
+      if (d.hay_planta && d.visible && !obs.includes(d.visible)) obs.push(d.visible);
+      seguidos = d.hay_planta && d.calidad_ok ? seguidos + 1 : 0;
       if (seguidos >= 2) return recopilar(mi);
       if (!hablando()) hablar(frase);
     } catch (e) {
@@ -220,8 +238,8 @@ async function buscar(mi) {
 }
 
 async function recopilar(mi) {
-  subtitulo("Limonero detectado. Mantén la cámara quieta.");
-  hablar("Limonero detectado. Mantén la cámara quieta un momento.");
+  subtitulo("Planta detectada. Mantén la cámara quieta.");
+  hablar("Planta detectada. Mantén la cámara quieta un momento.");
   const frames = [];
   for (let i = 0; i < 4; i++) { await dormir(1300); if (mi !== sesion) return; frames.push(capturar(768)); }
 
@@ -248,10 +266,10 @@ async function recopilar(mi) {
 
 function narrarEspera(mi) {
   const lineas = [
-    "Estoy recopilando los datos del árbol.",
+    "Estoy recopilando los datos de la planta.",
     ...obs.slice(0, 3).map((o) => "Antes vi esto. " + o),
-    "Estoy revisando el color y la forma de las hojas.",
-    "Comparando con las enfermedades más comunes del limón.",
+    "Estoy revisando el color, las nervaduras y las manchas de las hojas.",
+    "Comparando con las enfermedades y deficiencias más comunes.",
     "Ya casi termino. Un momento más.",
   ];
   let i = 0;
@@ -269,23 +287,71 @@ function narrarEspera(mi) {
 function mostrar(d) {
   cambiar("resultado");
   setEstado("Listo");
-  if (d.es_limonero === false) {
-    ultimoResumen = "No logré ver bien un limonero. Escanea de nuevo acercándote a las hojas.";
-    $("resultado").innerHTML = `<div class="tarjeta"><h2>No vi un limonero</h2>
+  diagnostico = d;
+  historial = [];
+  $("chat").innerHTML = "";
+  if (d.es_planta === false) {
+    ultimoResumen = "No logré ver bien una planta. Escanea de nuevo acercándote a las hojas.";
+    $("resultado").innerHTML = `<div class="tarjeta"><h2>No vi una planta</h2>
       <div class="pedir">${esc(d.necesita_mas_info || "Escanea de nuevo y acércate a las hojas o a un fruto.")}</div></div>`;
     return hablar(ultimoResumen);
   }
   const lista = (a) => (a || []).map((x) => `<li>${esc(x)}</li>`).join("");
   const conf = Math.max(0, Math.min(100, Number(d.confianza) || 0));
   $("resultado").innerHTML = `<div class="tarjeta">
+    <span class="tag">${esc(d.planta || "Planta")} · ${esc(d.estado || "")}</span>
     <h2>${esc(d.diagnostico)}</h2>
     <div>Confianza: ${conf}%</div><div class="barra"><i style="width:${conf}%"></i></div>
+    ${d.evidencia?.length ? `<h3>Lo que vi</h3><ul>${lista(d.evidencia)}</ul>` : ""}
     <h3>Causas posibles</h3><ul>${lista(d.causas_posibles)}</ul>
     <h3>Qué hacer</h3><ul>${lista(d.recomendaciones)}</ul>
     ${d.necesita_mas_info ? `<div class="pedir">${esc(d.necesita_mas_info)}</div>` : ""}
   </div>`;
   ultimoResumen = d.resumen_voz || `${d.diagnostico}. ${(d.recomendaciones || [])[0] || ""}`;
-  hablar(ultimoResumen);
+  hablar(ultimoResumen + " Si quieres, pregúntame lo que necesites.");
+}
+
+/* ---------- conversación (el agente sigue hablando contigo) ---------- */
+function agregarMsg(rol, texto) {
+  $("chat").insertAdjacentHTML("beforeend", `<div class="msg ${rol === "usuario" ? "u" : "a"}">${esc(texto)}</div>`);
+  $("chat").lastElementChild.scrollIntoView({ block: "nearest" });
+}
+
+async function preguntar(texto) {
+  texto = (texto || "").trim();
+  if (!texto) return;
+  $("txtPregunta").value = "";
+  agregarMsg("usuario", texto);
+  const pendiente = historial.slice();
+  historial.push({ rol: "usuario", texto });
+  setEstado("Pensando…");
+  try {
+    const d = await llamar("preguntar", [], { pregunta: texto, contexto: diagnostico, historial: pendiente });
+    const resp = d.respuesta || "No pude responder eso, intenta de otra forma.";
+    historial.push({ rol: "agente", texto: resp });
+    agregarMsg("agente", resp);
+    hablar(resp);
+  } catch (e) {
+    agregarMsg("agente", "Tuve un problema: " + e.message);
+  }
+  setEstado("Listo");
+}
+
+const Reconocimiento = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function escuchar() {
+  if (!Reconocimiento) { alert("Tu navegador no permite dictado por voz. Escribe la pregunta."); return; }
+  if (rec) { rec.stop(); return; }
+  speechSynthesis.cancel();
+  rec = new Reconocimiento();
+  rec.lang = "es-CO";
+  rec.interimResults = false;
+  $("btnMic").classList.add("grabando");
+  $("btnMic").textContent = "Escuchando…";
+  rec.onresult = (ev) => preguntar(ev.results[0][0].transcript);
+  rec.onerror = () => {};
+  rec.onend = () => { rec = null; $("btnMic").classList.remove("grabando"); $("btnMic").textContent = "Hablar"; };
+  rec.start();
 }
 
 function cancelar() {
@@ -302,6 +368,9 @@ $("btnEmpezar").onclick = () => { hablar("Hola, soy Agrobot."); iniciar(); };
 $("btnCancelar").onclick = cancelar;
 $("btnOtro").onclick = () => { speechSynthesis.cancel(); iniciar(); };
 $("btnRepetir").onclick = () => hablar(ultimoResumen);
+$("btnMic").onclick = escuchar;
+$("btnEnviar").onclick = () => preguntar($("txtPregunta").value);
+$("txtPregunta").onkeydown = (e) => { if (e.key === "Enter") preguntar($("txtPregunta").value); };
 $("btnVoz").onclick = () => {
   vozOn = !vozOn;
   $("btnVoz").textContent = "Voz: " + (vozOn ? "activada" : "apagada");
