@@ -1,24 +1,21 @@
 const MODELO = "gemini-3.8-flash";
 
 const INSTRUCCIONES = `
-Eres Agrobot AI, un asistente especializado en agricultura.
+Eres Agrobot AI, un asistente experto en agricultura.
 
-Tu función es ayudar a agricultores a identificar problemas en sus cultivos
-y brindar recomendaciones prácticas.
+Analiza imágenes de plantas para identificar:
+- Enfermedades.
+- Plagas.
+- Síntomas visibles.
+- Posibles causas.
+- Tratamientos recomendados.
+- Medidas de prevención.
 
-Debes:
-- Identificar posibles enfermedades en las plantas.
-- Reconocer plagas y daños visibles.
-- Analizar síntomas como manchas, hojas amarillas y marchitamiento.
-- Recomendar posibles tratamientos.
-- Dar recomendaciones preventivas.
-- Explicar tus respuestas en español sencillo.
+Responde siempre en español, de forma clara, breve y práctica.
 
-IMPORTANTE:
-No afirmes que un diagnóstico es 100% seguro solamente con una fotografía.
-Si no tienes suficiente información, indícalo claramente.
-No inventes enfermedades ni tratamientos.
-Recomienda consultar a un profesional agrícola cuando sea necesario.
+No inventes diagnósticos. Si no tienes suficiente información,
+indica que se necesita una revisión adicional.
+Nunca afirmes que un diagnóstico visual es 100% seguro.
 `;
 
 function responder(res, status, data) {
@@ -26,16 +23,14 @@ function responder(res, status, data) {
 }
 
 function obtenerImagenes(body) {
-  if (!Array.isArray(body.imagenes)) {
-    return [];
-  }
+  if (!Array.isArray(body.imagenes)) return [];
 
   return body.imagenes
     .filter(imagen =>
       typeof imagen === "string" &&
       /^data:image\/(jpeg|jpg|png|webp);base64,/.test(imagen)
     )
-    .slice(0, 4);
+    .slice(0, 2);
 }
 
 function convertirImagen(imagen) {
@@ -44,7 +39,7 @@ function convertirImagen(imagen) {
   );
 
   if (!coincidencia) {
-    throw new Error("Formato de imagen no válido.");
+    throw new Error("Formato de imagen inválido.");
   }
 
   return {
@@ -59,7 +54,7 @@ async function consultarGemini(contenido) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("No está configurada la variable GEMINI_API_KEY.");
+    throw new Error("Falta configurar GEMINI_API_KEY en Vercel.");
   }
 
   const url =
@@ -68,54 +63,67 @@ async function consultarGemini(contenido) {
     ":generateContent?key=" +
     apiKey;
 
-  const respuesta = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      system_instruction: {
-        parts: [
-          {
-            text: INSTRUCCIONES
-          }
-        ]
+  const controlador = new AbortController();
+
+  const temporizador = setTimeout(() => {
+    controlador.abort();
+  }, 45000);
+
+  try {
+    const respuesta = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
       },
-      contents: [
-        {
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{ text: INSTRUCCIONES }]
+        },
+        contents: [{
           role: "user",
           parts: contenido
+        }],
+        generationConfig: {
+          maxOutputTokens: 900,
+          thinkingConfig: {
+            thinkingLevel: "low"
+          }
         }
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 1500
-      }
-    })
-  });
+      }),
+      signal: controlador.signal
+    });
 
-  const datos = await respuesta.json();
+    const datos = await respuesta.json();
 
-  if (!respuesta.ok) {
-    const mensaje =
-      datos.error?.message ||
-      "No fue posible consultar el servicio de inteligencia artificial.";
+    if (!respuesta.ok) {
+      throw new Error(
+        datos.error?.message || "Error al consultar Gemini."
+      );
+    }
 
-    const error = new Error(mensaje);
-    error.status = respuesta.status;
+    const texto = datos.candidates?.[0]?.content?.parts
+      ?.map(parte => parte.text || "")
+      .join("\n")
+      .trim();
+
+    if (!texto) {
+      throw new Error("Gemini no generó una respuesta.");
+    }
+
+    return texto;
+
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(
+        "Gemini tardó demasiado. Intenta nuevamente."
+      );
+    }
+
     throw error;
+
+  } finally {
+    clearTimeout(temporizador);
   }
-
-  const texto = datos.candidates?.[0]?.content?.parts
-    ?.map(parte => parte.text || "")
-    .join("\n")
-    .trim();
-
-  if (!texto) {
-    throw new Error("La inteligencia artificial no generó una respuesta.");
-  }
-
-  return texto;
 }
 
 module.exports = async function handler(req, res) {
@@ -136,46 +144,36 @@ module.exports = async function handler(req, res) {
 
       if (imagenes.length === 0) {
         return responder(res, 400, {
-          error: "Debes enviar al menos una imagen válida."
+          error: "Debes enviar una imagen válida."
         });
       }
 
       for (const imagen of imagenes) {
         if (imagen.length > 7 * 1024 * 1024) {
           return responder(res, 413, {
-            error: "Una de las imágenes es demasiado grande."
+            error: "La imagen es demasiado grande."
           });
         }
 
         contenido.push(convertirImagen(imagen));
       }
 
-      const instruccion = modo === "detectar"
-        ? "Observa la imagen e identifica qué planta o cultivo aparece. Describe brevemente su estado visible y posibles problemas."
-        : "Realiza un diagnóstico agrícola de las imágenes proporcionadas. Identifica la planta si es posible, describe los síntomas visibles, posibles enfermedades o plagas, causas probables, nivel de riesgo y recomendaciones de tratamiento y prevención. Aclara qué tan seguro es el diagnóstico.";
-
       contenido.push({
-        text: instruccion
+        text: modo === "detectar"
+          ? "Identifica la planta y describe brevemente su estado."
+          : "Realiza un diagnóstico de la planta. Identifica síntomas, posibles enfermedades o plagas, causas, nivel de riesgo y recomendaciones de tratamiento y prevención."
       });
 
     } else if (modo === "preguntar") {
       const pregunta = String(body.pregunta || "").trim();
 
-      if (!pregunta) {
+      if (!pregunta || pregunta.length > 2000) {
         return responder(res, 400, {
-          error: "Debes escribir una pregunta."
+          error: "La pregunta está vacía o es demasiado larga."
         });
       }
 
-      if (pregunta.length > 2000) {
-        return responder(res, 400, {
-          error: "La pregunta es demasiado larga."
-        });
-      }
-
-      contenido.push({
-        text: pregunta
-      });
+      contenido.push({ text: pregunta });
 
     } else {
       return responder(res, 400, {
@@ -191,9 +189,9 @@ module.exports = async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error("Error en Agrobot AI:", error);
+    console.error("Error Agrobot AI:", error);
 
-    return responder(res, error.status || 500, {
+    return responder(res, error.name === "AbortError" ? 504 : 500, {
       exito: false,
       error: error.message || "Error interno del servidor."
     });
