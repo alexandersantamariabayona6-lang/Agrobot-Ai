@@ -3,9 +3,7 @@
 
 // Se prueban en orden. Si uno da 404 o está saturado, pasa al siguiente.
 const MODELOS = [
-  "gemini-3.8-flash",
-  "gemini-3.6-flash",
-  "gemini-flash-latest"
+  "gemini-3.1-flash-lite"
 ];
 
 const urlModelo = (m) =>
