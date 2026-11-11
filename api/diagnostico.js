@@ -1,14 +1,21 @@
 // api/diagnostico.js
-// Backend de Agrobot AI (Vercel) usando gemini-2.5-flash
+// Backend de Agrobot AI (Vercel)
 
-const MODELO = "gemini-3.8-flash";
-const URL_API = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
+// Se prueban en orden. Si uno da 404 o está saturado, pasa al siguiente.
+const MODELOS = [
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-flash-latest"
+];
+
+const urlModelo = (m) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
 
 const PROMPT_DIAGNOSTICO = `Eres Agrobot AI, un ingeniero agrónomo experto que ayuda a campesinos y cultivadores en Colombia.
 Analiza la fotografía de una planta (hoja, fruto, tallo o árbol completo; cualquier especie).
 Fíjate en el color y la forma de las hojas, las nervaduras, manchas, bordes secos, plagas visibles y el estado del fruto.
 
-Responde SOLO en texto plano, en español, con EXACTAMENTE este formato de 5 líneas o bloques. No uses markdown, asteriscos, emojis ni símbolos decorativos:
+Responde SOLO en texto plano, en español, con EXACTAMENTE este formato. No uses markdown, asteriscos, emojis ni símbolos decorativos:
 
 PLANTA: nombre científico | nombre común
 PROBLEMA: qué enfermedad, plaga o deficiencia parece tener, explicado en 2 o 3 frases sencillas. Si se ve sana, dilo.
@@ -32,10 +39,10 @@ Si hay riesgo real para la salud (por ejemplo, productos químicos), recomienda 
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- Llamada a Gemini con reintentos ----------
+// ---------- Llamada a Gemini con reintentos y respaldo ----------
 
-async function llamarGemini(body) {
-  const r = await fetch(URL_API, {
+async function llamarModelo(modelo, body) {
+  const r = await fetch(urlModelo(modelo), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -49,26 +56,35 @@ async function llamarGemini(body) {
     try {
       detalle = await r.text();
     } catch (_) {}
-    const e = new Error(`Gemini ${r.status}: ${detalle.slice(0, 250)}`);
+    const e = new Error(`Gemini (${modelo}) ${r.status}: ${detalle.slice(0, 200)}`);
     e.status = r.status;
     throw e;
   }
   return r.json();
 }
 
-async function conReintentos(body) {
+async function conRespaldo(body) {
   let ultimo;
-  for (let i = 0; i < 3; i++) {
-    try {
-      return await llamarGemini(body);
-    } catch (e) {
-      ultimo = e;
-      const temporal = [429, 500, 503, 504].includes(e.status);
-      if (!temporal) throw e;
-      await sleep(1000 * (i + 1));
+
+  for (const modelo of MODELOS) {
+    for (let intento = 0; intento < 2; intento++) {
+      try {
+        return await llamarModelo(modelo, body);
+      } catch (e) {
+        ultimo = e;
+
+        // Modelo que no existe o ya no está disponible: probar el siguiente
+        if (e.status === 404) break;
+
+        // Saturación temporal: reintentar y, si sigue, pasar al siguiente modelo
+        const temporal = [429, 500, 503, 504].includes(e.status);
+        if (!temporal) throw e; // clave mala, imagen inválida, etc.
+
+        await sleep(900 * (intento + 1));
+      }
     }
   }
-  throw ultimo;
+  throw ultimo || new Error("No hay modelos disponibles");
 }
 
 function sacarTexto(data) {
@@ -76,7 +92,11 @@ function sacarTexto(data) {
     throw new Error("La imagen fue bloqueada: " + data.promptFeedback.blockReason);
   }
   const partes = data?.candidates?.[0]?.content?.parts || [];
-  const texto = partes.map((p) => p.text || "").join("").trim();
+  const texto = partes
+    .filter((p) => !p.thought)
+    .map((p) => p.text || "")
+    .join("")
+    .trim();
   if (!texto) throw new Error("Gemini no devolvió texto");
   return texto;
 }
@@ -122,7 +142,7 @@ async function iniciar(imagen) {
     base64 = m[2];
   }
 
-  const data = await conReintentos({
+  const data = await conRespaldo({
     contents: [
       {
         role: "user",
@@ -134,8 +154,7 @@ async function iniciar(imagen) {
     ],
     generationConfig: {
       temperature: 0.3,
-      maxOutputTokens: 1500,
-      thinkingConfig: { thinkingBudget: 0 }
+      maxOutputTokens: 2500
     }
   });
 
@@ -150,15 +169,16 @@ async function iniciar(imagen) {
 async function preguntar(interactionId, pregunta) {
   if (!pregunta) throw new Error("Escribe una pregunta");
   const estado = leerId(interactionId);
+  const q = String(pregunta).slice(0, 500);
 
   const contents = [];
-  for (const [q, a] of estado.h) {
-    contents.push({ role: "user", parts: [{ text: q }] });
-    contents.push({ role: "model", parts: [{ text: a }] });
+  for (const [pq, pa] of estado.h) {
+    contents.push({ role: "user", parts: [{ text: pq }] });
+    contents.push({ role: "model", parts: [{ text: pa }] });
   }
-  contents.push({ role: "user", parts: [{ text: String(pregunta).slice(0, 500) }] });
+  contents.push({ role: "user", parts: [{ text: q }] });
 
-  const data = await conReintentos({
+  const data = await conRespaldo({
     systemInstruction: {
       parts: [
         {
@@ -172,15 +192,14 @@ async function preguntar(interactionId, pregunta) {
     contents,
     generationConfig: {
       temperature: 0.5,
-      maxOutputTokens: 600,
-      thinkingConfig: { thinkingBudget: 0 }
+      maxOutputTokens: 1200
     }
   });
 
   const respuesta = limpiar(sacarTexto(data));
 
-  // Guardamos solo las últimas 6 preguntas para que el id no crezca de más
-  const h = [...estado.h, [String(pregunta).slice(0, 500), respuesta]].slice(-6);
+  // Solo las últimas 6 preguntas, para que el id no crezca de más
+  const h = [...estado.h, [q, respuesta]].slice(-6);
 
   return {
     status: "completed",
@@ -219,7 +238,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (body.accion === "estado") {
-      // Las respuestas ya llegan completas, esto es solo por compatibilidad
+      // Las respuestas ya llegan completas; esto es solo por compatibilidad
       return res.status(200).json({
         status: "failed",
         error: "Este análisis ya no está disponible. Toma una nueva foto."
