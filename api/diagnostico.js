@@ -1,4 +1,4 @@
-const MODELO = "gemini-3.8-flash";
+const MODELO = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 
 // Debe ser menor que maxDuration de vercel.json (60 s)
 const TIEMPO_MAXIMO_MS = 50000;
@@ -31,20 +31,28 @@ function responder(res, status, datos) {
   return res.status(status).json(datos);
 }
 
+function textosDe(contenido) {
+  return (Array.isArray(contenido) ? contenido : [])
+    .filter(parte => parte && parte.type === "text" && parte.text)
+    .map(parte => parte.text);
+}
+
 function obtenerTexto(interaccion) {
   if (interaccion.output_text) {
     return interaccion.output_text;
   }
 
-  const pasos = interaccion.steps || [];
+  // Formato "outputs": [{ type: "text", text: "..." }]
+  let textos = textosDe(interaccion.outputs);
 
-  const resultados = pasos
-    .filter(paso => paso.type === "model_output")
-    .flatMap(paso => paso.content || [])
-    .filter(parte => parte.type === "text" && parte.text)
-    .map(parte => parte.text);
+  // Formato "steps": [{ type: "model_output", content: [...] }]
+  if (!textos.length) {
+    textos = (interaccion.steps || [])
+      .filter(paso => paso.type === "model_output")
+      .flatMap(paso => textosDe(paso.content));
+  }
 
-  return resultados.join("\n").trim();
+  return textos.join("\n").trim();
 }
 
 function armarResultado(interaccion) {
@@ -64,6 +72,14 @@ function armarResultado(interaccion) {
       interactionId: interaccion.id,
       respuesta: respuesta
     };
+  }
+
+  if (status === "completed") {
+    console.error("Gemini terminó sin texto. Campos:", Object.keys(interaccion));
+    throw new Error(
+      "Gemini respondió sin texto (campos: " +
+      Object.keys(interaccion).join(", ") + ")."
+    );
   }
 
   // Respaldo: si aun no esta lista, el frontend consulta con limite de tiempo
