@@ -1,7 +1,7 @@
 // api/diagnostico.js
 // Backend de Agrobot AI (Vercel) usando gemini-2.5-flash
 
-const MODELO = "gemini-2.5-flash";
+const MODELO = "gemini-3.8-flash";
 const URL_API = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
 
 const PROMPT_DIAGNOSTICO = `Eres Agrobot AI, un ingeniero agrónomo experto que ayuda a campesinos y cultivadores en Colombia.
