@@ -735,27 +735,40 @@
   // COMUNICACION CON EL BACKEND
 
   async function llamarAPI(datos) {
-    const respuesta = await fetch("/api/diagnostico", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(datos)
-    });
+    const controlador = new AbortController();
+    const temporizador = setTimeout(() => controlador.abort(), 55000);
 
-    const resultado = await respuesta.json();
+    try {
+      const respuesta = await fetch("/api/diagnostico", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(datos),
+        signal: controlador.signal
+      });
 
-    if (!respuesta.ok) {
-      throw new Error(
-        resultado.error || "No fue posible comunicarse con Agrobot."
-      );
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.error || "No fue posible comunicarse con Agrobot."
+        );
+      }
+
+      return resultado;
+    } catch (error) {
+      if (error.name === "AbortError") {
+        throw new Error("El análisis tardó demasiado. Intenta de nuevo.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(temporizador);
     }
-
-    return resultado;
   }
 
 
-  // INICIAR DIAGNOSTICO EN SEGUNDO PLANO
+  // INICIAR DIAGNOSTICO
 
   async function iniciarAnalisis() {
     if (consultando) return;
@@ -777,7 +790,10 @@
 
       interaccionId = inicio.interactionId;
 
-      const resultado = await esperarResultado(interaccionId);
+      // Normalmente la respuesta ya viene lista; solo se espera si no fue asi
+      const resultado = inicio.respuesta
+        ? inicio
+        : await esperarResultado(interaccionId);
 
       textoDiagnostico = resultado.respuesta;
 
@@ -816,11 +832,13 @@
 
   // CONSULTAR ESTADO DEL ANALISIS
 
+  // Respaldo con limite: maximo 60 segundos, nunca espera para siempre
   async function esperarResultado(id) {
+    const limite = Date.now() + 60000;
     let erroresConsecutivos = 0;
 
-    while (true) {
-      await new Promise(resolve => setTimeout(resolve, 2500));
+    while (Date.now() < limite) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       try {
         const estado = await llamarAPI({
@@ -852,11 +870,13 @@
       } catch (error) {
         erroresConsecutivos++;
 
-        if (erroresConsecutivos >= 6) {
+        if (erroresConsecutivos >= 3) {
           throw error;
         }
       }
     }
+
+    throw new Error("El análisis tardó demasiado. Intenta de nuevo.");
   }
 
 
@@ -943,7 +963,9 @@
         pregunta: pregunta
       });
 
-      const resultado = await esperarResultado(inicio.interactionId);
+      const resultado = inicio.respuesta
+        ? inicio
+        : await esperarResultado(inicio.interactionId);
 
       interaccionId = inicio.interactionId;
 

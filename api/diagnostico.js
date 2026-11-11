@@ -1,57 +1,30 @@
 const MODELO = "gemini-3.8-flash";
 
+// Debe ser menor que maxDuration de vercel.json (60 s)
+const TIEMPO_MAXIMO_MS = 50000;
+
 const URL_GEMINI =
   "https://generativelanguage.googleapis.com/v1beta/interactions";
 
 const INSTRUCCIONES = `
-Eres Agrobot AI, un asistente agrícola especializado en analizar cultivos.
+Eres Agrobot AI, asistente agrícola. Responde en español, con lenguaje simple y directo.
 
-Responde siempre en español, con lenguaje sencillo, claro y práctico.
+CUANDO RECIBAS UNA FOTO:
+Analiza solo lo que se ve. Si no estás seguro, dilo. No inventes datos.
+Responde CORTO, máximo 90 palabras, con exactamente este formato:
 
-CUANDO RECIBAS UNA FOTOGRAFÍA:
+🌱 PLANTA: nombre o "No identificada".
+🔎 PROBLEMA: qué podría tener, en una o dos frases.
+⚠️ RIESGO: bajo, medio o alto, y por qué en una frase.
+💡 QUÉ HACER: máximo 3 acciones, una línea cada una.
+📌 CONFIANZA: una frase (el diagnóstico visual es orientativo).
 
-Analiza únicamente lo que sea visible en la imagen.
-Identifica la planta si tienes suficiente información.
-Examina hojas, tallos, frutos y otros elementos visibles.
-Busca posibles enfermedades, plagas o deficiencias.
-No confundas síntomas similares ni inventes datos.
+Sin introducción ni cierre.
 
-Organiza el diagnóstico con esta estructura:
-
-🌱 PLANTA:
-Nombre de la planta o "No identificada".
-
-🔎 PROBLEMA PROBABLE:
-Explica brevemente qué podría estar ocurriendo.
-
-⚠️ NIVEL DE RIESGO:
-Bajo, medio o alto. Explica brevemente por qué.
-
-🍃 SÍNTOMAS OBSERVADOS:
-Menciona los síntomas que realmente se ven en la fotografía.
-
-💡 RECOMENDACIONES:
-Ofrece máximo 3 recomendaciones prácticas y concretas.
-
-📌 CONFIABILIDAD:
-Indica si el diagnóstico es orientativo y qué información adicional
-sería necesaria para confirmarlo.
-
-No escribas introducciones largas ni conclusiones repetitivas.
-Prioriza respuestas breves y útiles.
-
-CUANDO EL USUARIO HAGA PREGUNTAS:
-- Utiliza el diagnóstico anterior como contexto.
-- Responde directamente lo que pregunta.
-- Usa máximo 3 párrafos cortos.
-- No repitas todo el diagnóstico.
-- Explica los tratamientos y precauciones de manera sencilla.
-
-IMPORTANTE:
-Un diagnóstico visual no es una confirmación definitiva.
-Si no puedes identificar el problema, dilo claramente.
-No recomiendes productos químicos sin explicar sus precauciones.
-Recomienda consultar a un agrónomo cuando sea necesario.
+CUANDO EL USUARIO PREGUNTE:
+Usa el diagnóstico anterior como contexto. Responde solo lo que pregunta,
+en máximo 2 párrafos cortos. Si recomiendas un producto químico, menciona su
+precaución principal. Sugiere un agrónomo solo si es necesario.
 `;
 
 function responder(res, status, datos) {
@@ -74,6 +47,33 @@ function obtenerTexto(interaccion) {
   return resultados.join("\n").trim();
 }
 
+function armarResultado(interaccion) {
+  const status = interaccion.status || "completed";
+
+  if (status === "failed" || status === "cancelled") {
+    throw new Error("Gemini no pudo completar el análisis.");
+  }
+
+  const respuesta = obtenerTexto(interaccion);
+
+  // Respuesta directa: ya viene el texto, no hace falta esperar
+  if (respuesta) {
+    return {
+      exito: true,
+      status: "completed",
+      interactionId: interaccion.id,
+      respuesta: respuesta
+    };
+  }
+
+  // Respaldo: si aun no esta lista, el frontend consulta con limite de tiempo
+  return {
+    exito: true,
+    status: status,
+    interactionId: interaccion.id
+  };
+}
+
 async function peticionGemini(ruta, opciones = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -83,16 +83,34 @@ async function peticionGemini(ruta, opciones = {}) {
     );
   }
 
-  const respuesta = await fetch(ruta, {
-    ...opciones,
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-      ...opciones.headers
-    }
-  });
+  const controlador = new AbortController();
+  const temporizador = setTimeout(() => controlador.abort(), TIEMPO_MAXIMO_MS);
 
-  const datos = await respuesta.json();
+  let respuesta;
+  let datos;
+
+  try {
+    respuesta = await fetch(ruta, {
+      ...opciones,
+      signal: controlador.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+        ...opciones.headers
+      }
+    });
+
+    datos = await respuesta.json();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(
+        "Gemini tardó demasiado en responder. Intenta de nuevo."
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(temporizador);
+  }
 
   if (!respuesta.ok) {
     console.error("Error de Gemini:", datos);
@@ -137,14 +155,13 @@ async function iniciarDiagnostico(body) {
     method: "POST",
     body: JSON.stringify({
       model: MODELO,
-      background: true,
       store: true,
 
       system_instruction: INSTRUCCIONES,
 
       generation_config: {
         thinking_level: "low",
-        max_output_tokens: 1800
+        max_output_tokens: 900
       },
 
       input: [
@@ -170,11 +187,7 @@ async function iniciarDiagnostico(body) {
     );
   }
 
-  return {
-    exito: true,
-    interactionId: interaccion.id,
-    status: interaccion.status || "in_progress"
-  };
+  return armarResultado(interaccion);
 }
 
 
@@ -244,7 +257,6 @@ async function preguntar(body) {
     method: "POST",
     body: JSON.stringify({
       model: MODELO,
-      background: true,
       store: true,
 
       previous_interaction_id: id,
@@ -253,7 +265,7 @@ async function preguntar(body) {
 
       generation_config: {
         thinking_level: "low",
-        max_output_tokens: 1200
+        max_output_tokens: 700
       },
 
       input: pregunta
@@ -266,11 +278,7 @@ async function preguntar(body) {
     );
   }
 
-  return {
-    exito: true,
-    interactionId: interaccion.id,
-    status: interaccion.status || "in_progress"
-  };
+  return armarResultado(interaccion);
 }
 
 
