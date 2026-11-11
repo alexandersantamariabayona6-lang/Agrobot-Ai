@@ -3,538 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#103d29">
+  <meta name="theme-color" content="#1f5d3a">
   <title>Agrobot AI</title>
-
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --verde: #176b43;
-      --verde-oscuro: #103d29;
-      --verde-claro: #e9f5ed;
-      --fondo: #f5f8f4;
-      --blanco: #ffffff;
-      --texto: #203328;
-      --gris: #718078;
-      --borde: #dce8de;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: Arial, sans-serif;
-      background: var(--fondo);
-      color: var(--texto);
-      min-height: 100vh;
-    }
-
-    header {
-      background: var(--verde-oscuro);
-      color: white;
-      padding: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo {
-      font-size: 25px;
-      font-weight: bold;
-    }
-
-    .logo span {
-      color: #e7c94b;
-    }
-
-    .estado-header {
-      font-size: 13px;
-      color: #c7ddce;
-    }
-
-    main {
-      max-width: 760px;
-      margin: 25px auto;
-      padding: 0 16px 35px;
-    }
-
-    .screen {
-      display: none;
-    }
-
-    .screen.active {
-      display: block;
-      animation: aparecer .3s ease;
-    }
-
-    @keyframes aparecer {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .card {
-      background: var(--blanco);
-      padding: 25px;
-      border: 1px solid var(--borde);
-      border-radius: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 5px 20px #193d2010;
-    }
-
-    h1 {
-      font-size: 27px;
-      margin-bottom: 12px;
-    }
-
-    h2 {
-      font-size: 21px;
-      margin-bottom: 12px;
-    }
-
-    p {
-      color: var(--gris);
-      line-height: 1.6;
-    }
-
-    button {
-      border: none;
-      padding: 15px 18px;
-      border-radius: 12px;
-      background: var(--verde);
-      color: white;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-    }
-
-    button.secundario {
-      background: var(--verde-claro);
-      color: var(--verde-oscuro);
-    }
-
-    button.ancho {
-      width: 100%;
-      margin-top: 15px;
-    }
-
-    button.oscuro {
-      background: var(--verde-oscuro);
-    }
-
-    .bienvenida {
-      text-align: center;
-      padding: 35px 22px;
-    }
-
-    .planta-icono {
-      font-size: 75px;
-      margin: 20px 0;
-    }
-
-    .bienvenida p {
-      max-width: 450px;
-      margin: 0 auto;
-    }
-
-    .camara {
-      background: #102319;
-      border-radius: 16px;
-      overflow: hidden;
-      margin: 18px 0;
-      min-height: 250px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    video {
-      display: none;
-      width: 100%;
-      max-height: 500px;
-      object-fit: cover;
-    }
-
-    .camara-mensaje {
-      color: white;
-      text-align: center;
-      padding: 30px;
-    }
-
-    .camara-mensaje div {
-      font-size: 55px;
-      margin-bottom: 12px;
-    }
-
-    .controles {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .controles button {
-      flex: 1;
-      min-width: 130px;
-    }
-
-    .vista-foto {
-      width: 100%;
-      max-height: 440px;
-      object-fit: contain;
-      background: #14271b;
-      border-radius: 14px;
-      margin: 15px 0;
-    }
-
-    .cargando {
-      text-align: center;
-      padding: 40px 15px;
-    }
-
-    .loader {
-      width: 75px;
-      height: 75px;
-      border: 7px solid #e3eee5;
-      border-top-color: var(--verde);
-      border-radius: 50%;
-      margin: 25px auto;
-      animation: girar 1s linear infinite;
-    }
-
-    @keyframes girar {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .paso-analisis {
-      color: var(--gris);
-      font-size: 14px;
-      margin-top: 12px;
-      min-height: 22px;
-    }
-
-    .cargando h2 {
-      margin-bottom: 8px;
-    }
-
-    .loader {
-      width: 68px;
-      height: 68px;
-      border: 5px solid #e3eee5;
-      border-top-color: var(--verde);
-      border-radius: 50%;
-      margin: 28px auto;
-      animation: girar .9s linear infinite;
-    }
-
-    .resultado {
-      white-space: pre-wrap;
-      line-height: 1.75;
-      font-size: 15px;
-      color: var(--texto);
-      margin-top: 15px;
-    }
-
-    .etiqueta {
-      display: inline-block;
-      background: var(--verde-claro);
-      color: var(--verde);
-      padding: 7px 12px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 12px;
-    }
-
-    .chat-mensajes {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin: 20px 0;
-    }
-
-    .mensaje {
-      padding: 13px 15px;
-      border-radius: 14px;
-      max-width: 90%;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      font-size: 14px;
-    }
-
-    .mensaje.usuario {
-      background: var(--verde);
-      color: white;
-      align-self: flex-end;
-    }
-
-    .mensaje.agrobot {
-      background: var(--verde-claro);
-      color: var(--texto);
-      align-self: flex-start;
-    }
-
-    .entrada-chat {
-      display: flex;
-      gap: 8px;
-    }
-
-    .entrada-chat input {
-      flex: 1;
-      min-width: 0;
-      padding: 14px;
-      border: 1px solid var(--borde);
-      border-radius: 10px;
-      font-size: 15px;
-    }
-
-    .estado {
-      font-size: 13px;
-      margin-top: 12px;
-      color: var(--gris);
-    }
-
-    .error {
-      color: #b42318;
-    }
-
-    .botones-secundarios {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 15px;
-    }
-
-    .botones-secundarios button {
-      flex: 1;
-    }
-
-    footer {
-      text-align: center;
-      color: var(--gris);
-      font-size: 12px;
-      padding: 20px;
-    }
-
-    @media (max-width: 500px) {
-      header {
-        padding: 17px;
-      }
-
-      .logo {
-        font-size: 22px;
-      }
-
-      main {
-        margin-top: 15px;
-      }
-
-      .card {
-        padding: 19px;
-      }
-
-      .entrada-chat {
-        flex-wrap: wrap;
-      }
-
-      .entrada-chat input {
-        flex-basis: 100%;
-      }
-    }
+:root{--hoja:#1f5d3a;--hoja2:#2f7d4f;--savia:#c8e86b;--fondo:#f2f5ec;--papel:#fffefa;--tinta:#14281d;--suave:#5d6f63;--linea:#d9e2d2;--alto:#c0392b;--medio:#b87300;--bajo:#2f7d4f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Figtree,system-ui,sans-serif;background:var(--fondo) radial-gradient(900px 420px at 50% -140px,#dcebc9,transparent) no-repeat;color:var(--tinta);min-height:100vh;display:flex;flex-direction:column;line-height:1.55}
+header,.pasos,main{width:100%;max-width:520px;margin:0 auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px}
+.logo{display:flex;align-items:center;gap:8px;font:600 22px Fraunces,Georgia,serif;color:var(--hoja)}
+.logo svg{width:28px;height:28px}.logo span{color:var(--hoja2)}
+.estado-header{font-size:13px;color:var(--suave)}
+.pasos{display:flex;gap:6px;padding:0 20px;visibility:hidden}
+body:not([data-paso="0"]) .pasos{visibility:visible}
+.pasos i{flex:1;height:5px;border-radius:9px;background:var(--linea);transition:background .3s}
+body[data-paso="1"] .pasos i:nth-child(1),body[data-paso="2"] .pasos i:nth-child(-n+2),body[data-paso="3"] .pasos i{background:var(--hoja2)}
+main{flex:1;padding:18px 20px 26px}
+.screen{display:none}.screen.active{display:block;animation:entra .35s ease}
+@keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.card{background:var(--papel);border:1px solid var(--linea);border-radius:24px;padding:24px;box-shadow:0 16px 34px -20px rgba(31,93,58,.45)}
+h1{font:600 32px/1.12 Fraunces,Georgia,serif;color:var(--hoja);margin:18px 0 12px}
+h2{font:600 24px/1.2 Fraunces,Georgia,serif;color:var(--hoja)}
+p{color:var(--suave)}
+button{font:600 16px Figtree,sans-serif;border:0;border-radius:999px;padding:14px 22px;background:var(--hoja);color:#fff;cursor:pointer;transition:transform .15s,background .2s}
+button:hover{background:var(--hoja2)}button:active{transform:scale(.97)}button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--savia);outline-offset:2px}
+.secundario{background:#e6eedc;color:var(--hoja)}.secundario:hover{background:#d9e6cb}
+.ancho{width:100%;margin-top:12px}.estado{font-size:13px;margin-top:12px;min-height:18px}
+.hero{width:92px;height:92px;border-radius:32px 32px 32px 8px;background:var(--savia);display:grid;place-items:center}.hero svg{width:54px;height:54px}
+.camara{position:relative;aspect-ratio:3/4;border-radius:28px;overflow:hidden;background:#0f2418;margin:14px 0}
+.camara video{width:100%;height:100%;object-fit:cover;display:none}
+.camara-mensaje{position:absolute;inset:0;display:grid;place-content:center;text-align:center;color:#cfe3c7}
+.marco{position:absolute;inset:12% 10%;pointer-events:none;background:linear-gradient(var(--savia),var(--savia)) top left/28px 3px,linear-gradient(var(--savia),var(--savia)) top left/3px 28px,linear-gradient(var(--savia),var(--savia)) top right/28px 3px,linear-gradient(var(--savia),var(--savia)) top right/3px 28px,linear-gradient(var(--savia),var(--savia)) bottom left/28px 3px,linear-gradient(var(--savia),var(--savia)) bottom left/3px 28px,linear-gradient(var(--savia),var(--savia)) bottom right/28px 3px,linear-gradient(var(--savia),var(--savia)) bottom right/3px 28px;background-repeat:no-repeat}
+.pista{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 6px #000b}
+.controles{display:flex;align-items:center;justify-content:space-between}
+.disparo{width:76px;height:76px;padding:0;border-radius:50%;background:#fff;border:5px solid var(--hoja);box-shadow:0 0 0 4px var(--savia)}.disparo:hover{background:#fff}
+.icono{width:52px;height:52px;padding:0;display:grid;place-items:center}.icono svg{width:24px;height:24px}.espacio{width:52px}
+.escaner{position:relative;aspect-ratio:4/3;border-radius:24px;overflow:hidden;margin:16px 0;background:#0f2418}
+.escaner img{width:100%;height:100%;object-fit:cover}
+.escaner::after{content:"";position:absolute;left:0;right:0;height:3px;background:var(--savia);box-shadow:0 0 22px 8px rgba(200,232,107,.6);animation:barrido 2.2s ease-in-out infinite}
+@keyframes barrido{0%,100%{top:4%}50%{top:94%}}
+#mensajeCarga{font-weight:600;color:var(--tinta)}
+.ficha-cab{display:flex;gap:14px;align-items:center;margin:4px 0 6px}
+.ficha-cab img{width:84px;height:84px;object-fit:cover;border-radius:22px 22px 22px 6px;border:2px solid var(--linea)}
+.ficha-cab small{font-size:13px;color:var(--suave)}
+#nombrePlanta{display:block;font:600 22px/1.2 Fraunces,Georgia,serif;color:var(--hoja)}
+.riesgo{display:inline-block;padding:3px 12px;border-radius:99px;color:#fff;font-weight:700;font-size:13px;margin-top:6px;background:var(--suave)}
+.riesgo.alto{background:var(--alto)}.riesgo.medio{background:var(--medio)}.riesgo.bajo{background:var(--bajo)}
+.bloque{padding:13px 16px;border-radius:16px;background:#f4f8ee;margin-top:10px;border-left:5px solid var(--hoja2)}
+.bloque h3{font:700 14px Figtree,sans-serif;color:var(--hoja);margin-bottom:3px}
+.bloque p,.bloque li{color:var(--tinta);font-size:15.5px}.bloque ul{padding-left:18px}
+.bloque.que{background:#f3f9df;border-left-color:#9cc22e}.bloque.conf{background:#f8f8f2;border-left-color:var(--linea)}
+.acciones{display:flex;gap:10px;margin-top:16px}.acciones button{flex:1;padding:12px}
+.voz{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--suave)}
+select{flex:1;min-width:0;border:1px solid var(--linea);border-radius:12px;padding:8px;background:#fff;font:inherit;color:var(--tinta)}
+.chat-mensajes{display:flex;flex-direction:column;gap:10px;max-height:44vh;overflow-y:auto;margin:14px 0;padding:4px}
+.mensaje{max-width:86%;padding:11px 15px;border-radius:18px;font-size:15.5px;white-space:pre-wrap}
+.mensaje.agrobot{background:#eaf2df;align-self:flex-start;border-bottom-left-radius:5px}
+.mensaje.usuario{background:var(--hoja);color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
+.entrada-chat{display:flex;gap:8px}
+.entrada-chat input{flex:1;min-width:0;border:1px solid var(--linea);border-radius:999px;padding:13px 18px;font:inherit;background:#fff}
+footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.escaner::after{top:50%}}
   </style>
 </head>
 
 <body>
 
 <header>
-  <div class="logo">Agrobot <span>AI</span></div>
+  <div class="logo">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 26C6 12 14 5 27 5c0 13-7 21-20 21z" fill="#1f5d3a"/><path d="M8 24c5-7 10-11 16-15" stroke="#c8e86b" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+    Agrobot <span>AI</span>
+  </div>
   <div class="estado-header" id="estadoHeader">Tu asistente agrícola</div>
 </header>
 
+<div class="pasos" aria-label="Progreso: foto, análisis, diagnóstico"><i></i><i></i><i></i></div>
+
 <main>
 
-  <!-- PANTALLA 1: BIENVENIDA -->
-
   <section id="pantallaInicio" class="screen active">
-    <div class="card bienvenida">
-      <div class="planta-icono">🌱</div>
-
-      <h1>¡Bienvenido a Agrobot AI!</h1>
-
-      <p>
-        Soy tu asistente agrícola inteligente. Puedo ayudarte a
-        identificar problemas en tus plantas, detectar posibles
-        enfermedades y recomendarte cómo cuidarlas.
-      </p>
-
-      <button class="ancho" onclick="iniciarExperiencia()">
-        Comenzar
-      </button>
-
-      <p class="estado">
-        Para comenzar, permite el acceso a la cámara y al micrófono.
-      </p>
+    <div class="card">
+      <div class="hero"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 26C6 12 14 5 27 5c0 13-7 21-20 21z" fill="#1f5d3a"/><path d="M8 24c5-7 10-11 16-15" stroke="#c8e86b" stroke-width="2" stroke-linecap="round" fill="none"/></svg></div>
+      <h1>Descubre qué le pasa a tu planta</h1>
+      <p>Toma una foto de una hoja, un fruto o el tallo. Agrobot te dice qué ve, qué tan urgente es y qué hacer.</p>
+      <button class="ancho" onclick="iniciarExperiencia()">Abrir cámara</button>
+      <p class="estado">Te pediremos permiso para la cámara. El micrófono es opcional, para hablar con Agrobot.</p>
     </div>
   </section>
-
-
-  <!-- PANTALLA 2: CAMARA -->
 
   <section id="pantallaCamara" class="screen">
     <div class="card">
-      <span class="etiqueta">PASO 1 · CAPTURA</span>
-
-      <h2>Enfoquemos tu planta</h2>
-
-      <p>
-        Coloca la cámara frente a la hoja o parte de la planta
-        que deseas analizar.
-      </p>
-
+      <h2>Enfoca la zona afectada</h2>
       <div class="camara">
-        <div class="camara-mensaje" id="mensajeCamara">
-          <div>📷</div>
-          <p style="color:white;">Preparando cámara...</p>
-        </div>
-
+        <div class="camara-mensaje" id="mensajeCamara"><p style="color:#cfe3c7">Preparando cámara...</p></div>
         <video id="video" autoplay muted playsinline></video>
+        <div class="marco"></div>
+        <div class="pista">Llena el marco con la hoja y busca buena luz</div>
       </div>
-
       <div class="controles">
-        <button id="btnFoto" onclick="tomarFoto()" disabled>
-          📸 Tomar fotografía
-        </button>
-
-        <button class="secundario" onclick="cambiarCamara()">
-          Cambiar cámara
-        </button>
+        <div class="espacio"></div>
+        <button class="disparo" id="btnFoto" onclick="tomarFoto()" disabled aria-label="Tomar fotografía"></button>
+        <button class="secundario icono" onclick="cambiarCamara()" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg></button>
       </div>
-
-      <p class="estado" id="estadoCamara">
-        Esperando cámara...
-      </p>
+      <p class="estado" id="estadoCamara">Esperando cámara...</p>
     </div>
   </section>
-
-
-  <!-- PANTALLA 3: ANALIZANDO -->
 
   <section id="pantallaCarga" class="screen">
-    <div class="card cargando">
-      <span class="etiqueta">PASO 2 · INTELIGENCIA ARTIFICIAL</span>
-
-      <h2>Estamos analizando tu planta</h2>
-
-      <div class="loader"></div>
-
-      <p id="mensajeCarga">
-        Enviando fotografía a Agrobot AI...
-      </p>
-
-      <p class="paso-analisis" id="detalleCarga">
-        La inteligencia artificial está examinando la imagen.
-      </p>
-
-      <p class="estado">
-        Este proceso puede tardar un poco. No cierres esta página.
-      </p>
+    <div class="card">
+      <h2>Revisando tu planta</h2>
+      <div class="escaner"><img id="fotoCarga" alt="Foto que se está analizando"></div>
+      <p id="mensajeCarga">Enviando fotografía a Agrobot...</p>
+      <p class="estado" id="detalleCarga">Suele tardar unos segundos.</p>
     </div>
   </section>
-
-
-  <!-- PANTALLA 4: RESULTADO -->
 
   <section id="pantallaResultado" class="screen">
     <div class="card">
-      <span class="etiqueta">PASO 3 · DIAGNÓSTICO</span>
-
-      <h2>🌿 Resultado del análisis</h2>
-
-      <div id="textoResultado" class="resultado"></div>
-
-      <div class="botones-secundarios">
-        <button class="secundario" onclick="leerResultado()">
-          🔊 Escuchar diagnóstico
-        </button>
-
-        <button class="secundario" onclick="detenerVoz()">
-          ⏹ Detener voz
-        </button>
+      <div class="ficha-cab">
+        <img id="fotoResultado" alt="Tu planta">
+        <div><small>Planta detectada</small><strong id="nombrePlanta">...</strong><span class="riesgo" id="badgeRiesgo"></span></div>
       </div>
-
-      <button class="ancho" onclick="abrirChat()">
-        💬 Hablar con Agrobot
-      </button>
-
-      <button class="ancho secundario" onclick="nuevaFoto()">
-        📸 Analizar otra planta
-      </button>
+      <div id="textoResultado"></div>
+      <div class="acciones">
+        <button class="secundario" onclick="leerResultado()">Escuchar</button>
+        <button class="secundario" onclick="detenerVoz()">Detener</button>
+      </div>
+      <div class="voz"><label for="selVoz">Voz</label><select id="selVoz" onchange="cambiarVoz(this.value)"></select></div>
+      <button class="ancho" onclick="abrirChat()">Preguntarle a Agrobot</button>
+      <button class="ancho secundario" onclick="nuevaFoto()">Analizar otra planta</button>
     </div>
   </section>
 
-
-  <!-- PANTALLA 5: CHAT -->
-
   <section id="pantallaChat" class="screen">
     <div class="card">
-      <span class="etiqueta">ASISTENTE AGRÍCOLA</span>
-
-      <h2>💬 Conversa con Agrobot</h2>
-
-      <p>
-        Puedes preguntarme cualquier cosa sobre el diagnóstico
-        que acabamos de realizar.
-      </p>
-
+      <h2>Conversa con Agrobot</h2>
+      <p>Pregunta por el tratamiento, los cuidados o la prevención.</p>
       <div id="mensajes" class="chat-mensajes"></div>
-
       <div class="entrada-chat">
-        <input
-          id="pregunta"
-          type="text"
-          placeholder="Escribe tu pregunta..."
-          onkeydown="if(event.key==='Enter') enviarPregunta()"
-        >
-
+        <input id="pregunta" type="text" placeholder="Escribe tu pregunta..." onkeydown="if(event.key==='Enter') enviarPregunta()">
         <button onclick="enviarPregunta()">Enviar</button>
       </div>
-
-      <div class="botones-secundarios">
-        <button class="secundario" id="btnVoz" onclick="escucharPregunta()">
-          🎙️ Hablar
-        </button>
-
-        <button class="secundario" onclick="detenerVoz()">
-          ⏹ Detener voz
-        </button>
+      <div class="acciones">
+        <button class="secundario" id="btnVoz" onclick="escucharPregunta()">Hablar</button>
+        <button class="secundario" onclick="detenerVoz()">Callar voz</button>
       </div>
-
       <p class="estado" id="estadoChat"></p>
-
-      <button class="ancho secundario" onclick="volverResultado()">
-        Volver al diagnóstico
-      </button>
+      <button class="ancho secundario" onclick="volverResultado()">Volver al diagnóstico</button>
     </div>
   </section>
 
 </main>
 
-<footer>
-  Agrobot AI · Inteligencia artificial aplicada a la agricultura
-</footer>
+<footer>Agrobot AI: inteligencia artificial aplicada a la agricultura</footer>
 
 
 <script>
@@ -568,6 +193,11 @@
 
     $(id).classList.add("active");
 
+    document.body.dataset.paso = {
+      pantallaInicio: 0, pantallaCamara: 1, pantallaCarga: 2,
+      pantallaResultado: 3, pantallaChat: 3
+    }[id];
+
     window.scrollTo({
       top: 0,
       behavior: "smooth"
@@ -577,38 +207,179 @@
 
   // VOZ DE AGROBOT
 
+  let vozElegida = null;
+  let colaVoz = 0;
+
+  function limpiarParaVoz(texto) {
+    return String(texto)
+      .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "")
+      .replace(/[*#_`~>]/g, "")
+      .replace(/\b[A-ZÁÉÍÓÚÑ]{3,}(?:\s[A-ZÁÉÍÓÚÑ]{3,})*/g,
+        p => p.charAt(0) + p.slice(1).toLowerCase())
+      .replace(/(^|\n)\s*[-•]\s+/g, "$1")
+      .replace(/\n+/g, ". ")
+      .replace(/([.:])\s*\./g, "$1")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
+
+  function vocesEspanol() {
+    return speechSynthesis.getVoices()
+      .filter(v => v.lang.toLowerCase().startsWith("es"));
+  }
+
+  function puntajeVoz(v) {
+    const n = v.name.toLowerCase();
+    const l = v.lang.toLowerCase().replace("_", "-");
+    let p = 0;
+    if (/natural|neural|online/.test(n)) p += 50;
+    if (/google/.test(n)) p += 30;
+    if (/premium|enhanced|mejorada/.test(n)) p += 25;
+    if (/es-(co|mx|us|419|ar|cl|pe)/.test(l)) p += 10;
+    if (v.localService === false) p += 5;
+    return p;
+  }
+
+  function cargarVoces() {
+    if (!("speechSynthesis" in window)) return;
+
+    const es = vocesEspanol();
+    const sel = $("selVoz");
+
+    if (!es.length || !sel) return;
+
+    if (!vozElegida || !es.includes(vozElegida)) {
+      vozElegida = es.slice().sort((a, b) => puntajeVoz(b) - puntajeVoz(a))[0];
+    }
+
+    sel.innerHTML = "";
+
+    es.forEach(v => {
+      const op = document.createElement("option");
+      op.value = v.name;
+      op.textContent = v.name + " (" + v.lang + ")";
+      op.selected = v === vozElegida;
+      sel.appendChild(op);
+    });
+  }
+
+  function cambiarVoz(nombre) {
+    vozElegida = vocesEspanol().find(v => v.name === nombre) || vozElegida;
+    hablar("Así suena mi voz. ¿Te gusta?");
+  }
+
+  if ("speechSynthesis" in window) {
+    speechSynthesis.onvoiceschanged = cargarVoces;
+    cargarVoces();
+  }
+
   function hablar(texto) {
     if (!("speechSynthesis" in window)) return;
 
-    window.speechSynthesis.cancel();
+    speechSynthesis.cancel();
 
-    const mensaje = new SpeechSynthesisUtterance(texto);
+    const frases = limpiarParaVoz(texto).match(/[^.!?:]+[.!?:]*/g) || [];
+    const id = ++colaVoz;
+    let i = 0;
 
-    mensaje.lang = "es-CO";
-    mensaje.rate = 0.95;
-    mensaje.pitch = 1;
+    const siguiente = () => {
+      if (id !== colaVoz || i >= frases.length) return;
 
-    const voces = window.speechSynthesis.getVoices();
+      const frase = frases[i++].trim();
+      if (!frase) return siguiente();
 
-    const vozEspanol = voces.find(voz =>
-      voz.lang.toLowerCase().startsWith("es")
-    );
+      const voz = new SpeechSynthesisUtterance(frase);
+      voz.lang = vozElegida ? vozElegida.lang : "es-419";
+      if (vozElegida) voz.voice = vozElegida;
+      voz.rate = 0.97;
+      voz.pitch = 1.02;
+      voz.onend = () => setTimeout(siguiente, 140);
+      voz.onerror = () => setTimeout(siguiente, 140);
 
-    if (vozEspanol) {
-      mensaje.voice = vozEspanol;
-    }
+      speechSynthesis.speak(voz);
+    };
 
-    window.speechSynthesis.speak(mensaje);
+    siguiente();
   }
 
   function detenerVoz() {
+    colaVoz++;
     if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
+      speechSynthesis.cancel();
+    }
+  }
+
+
+  // MOSTRAR DIAGNOSTICO EN BLOQUES
+
+  function mostrarDiagnostico(texto) {
+    const caja = $("textoResultado");
+    const datos = {};
+    let actual = null;
+
+    caja.textContent = "";
+
+    texto.split("\n").forEach(linea => {
+      const m = linea.replace(/[*_#]/g, "").trim()
+        .match(/^[^\p{L}]*(PLANTA|PROBLEMA|RIESGO|NIVEL DE RIESGO|QU[ÉE] HACER|RECOMENDACIONES|CONFIANZA|CONFIABILIDAD)[^:]*:\s*(.*)$/iu);
+
+      if (m) {
+        const k = m[1].toUpperCase();
+        actual = k.startsWith("PLANTA") ? "planta"
+          : k.startsWith("PROBLEMA") ? "problema"
+          : (k.startsWith("RIESGO") || k.startsWith("NIVEL")) ? "riesgo"
+          : k.startsWith("CONF") ? "conf" : "que";
+        datos[actual] = m[2];
+      } else if (actual && linea.trim()) {
+        datos[actual] += "\n" + linea.trim();
+      }
+    });
+
+    function bloque(clase, titulo, contenido, lista) {
+      const div = document.createElement("div");
+      const h = document.createElement("h3");
+      h.textContent = titulo;
+      div.className = "bloque " + clase;
+      div.appendChild(h);
+
+      if (lista) {
+        const ul = document.createElement("ul");
+        contenido.split("\n").filter(x => x.trim()).forEach(x => {
+          const li = document.createElement("li");
+          li.textContent = x.replace(/^[-•\d.)\s]+/, "");
+          ul.appendChild(li);
+        });
+        div.appendChild(ul);
+      } else {
+        const p = document.createElement("p");
+        p.textContent = contenido;
+        div.appendChild(p);
+      }
+
+      caja.appendChild(div);
     }
 
-    if (reconocimiento && reconociendo) {
-      reconocimiento.stop();
+    if (!datos.planta && !datos.problema) {
+      bloque("", "Diagnóstico", texto.replace(/[*_#]/g, ""));
+      $("nombrePlanta").textContent = "Resultado";
+      $("badgeRiesgo").style.display = "none";
+      return;
     }
+
+    $("nombrePlanta").textContent = (datos.planta || "No identificada").replace(/\.$/, "");
+
+    const nivel = (datos.riesgo || "").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/alto|medio|bajo/);
+    const badge = $("badgeRiesgo");
+
+    badge.style.display = nivel ? "inline-block" : "none";
+    badge.className = "riesgo " + (nivel ? nivel[0] : "");
+    badge.textContent = nivel ? "Riesgo " + nivel[0] : "";
+
+    if (datos.problema) bloque("", "Qué parece ser", datos.problema);
+    if (datos.riesgo) bloque("", "Por qué ese riesgo", datos.riesgo);
+    if (datos.que) bloque("que", "Qué hacer", datos.que, true);
+    if (datos.conf) bloque("conf", "Qué tan seguro es", datos.conf);
   }
 
   function leerResultado() {
@@ -779,6 +550,16 @@
 
     $("estadoHeader").textContent = "Analizando planta";
 
+    $("fotoCarga").src = fotoActual;
+    $("mensajeCarga").textContent = instruccionesCarga[0];
+
+    let n = 0;
+    const rotador = setInterval(() => {
+      if (!consultando) return clearInterval(rotador);
+      n = (n + 1) % instruccionesCarga.length;
+      $("mensajeCarga").textContent = instruccionesCarga[n];
+    }, 2600);
+
     hablar("Perfecto. Ya recibí tu fotografía. Ahora voy a analizar tu planta.");
 
 
@@ -797,7 +578,8 @@
 
       textoDiagnostico = resultado.respuesta;
 
-      $("textoResultado").textContent = textoDiagnostico;
+      mostrarDiagnostico(textoDiagnostico);
+      $("fotoResultado").src = fotoActual;
 
 
       consultando = false;
@@ -1015,7 +797,7 @@
     reconocimiento.onstart = function() {
       reconociendo = true;
 
-      $("btnVoz").textContent = "🔴 Escuchando...";
+      $("btnVoz").textContent = "Escuchando...";
       $("estadoChat").textContent = "Te estoy escuchando...";
     };
 
@@ -1034,7 +816,7 @@
 
     reconocimiento.onend = function() {
       reconociendo = false;
-      $("btnVoz").textContent = "🎙️ Hablar";
+      $("btnVoz").textContent = "Hablar";
     };
 
     reconocimiento.start();
