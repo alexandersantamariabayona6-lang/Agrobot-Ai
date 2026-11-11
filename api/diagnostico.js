@@ -1,346 +1,171 @@
-const MODELO = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+// api/diagnostico.js
+// Función serverless de Vercel para AgroBot AI
 
-// Debe ser menor que maxDuration de vercel.json (60 s)
-const TIEMPO_MAXIMO_MS = 50000;
+export const config = {
+  maxDuration: 60,
+  api: { bodyParser: { sizeLimit: "6mb" } }
+};
 
-const URL_GEMINI =
-  "https://generativelanguage.googleapis.com/v1beta/interactions";
+// Modelo principal y respaldos (se prueban en orden)
+const MODELOS = [
+  "gemini-3.6-flash",
+  "gemini-3.6-flash-lite",
+  "gemini-2.5-flash"
+];
 
-const INSTRUCCIONES = `
-Eres Agrobot AI, asistente agrícola. Responde en español, con lenguaje simple y directo.
+const PROMPT = `Eres AgroBot AI, un agrónomo experto. Analiza la imagen de una planta, hoja, fruto o árbol (cualquier especie, no solo limonero).
+Fíjate en: color y forma de las hojas, nervaduras, manchas, bordes quemados, plagas visibles, estado del fruto y del tallo.
 
-CUANDO RECIBAS UNA FOTO:
-Analiza solo lo que se ve. Si no estás seguro, dilo. No inventes datos.
-Responde CORTO, máximo 90 palabras, con exactamente este formato:
-
-🌱 PLANTA: nombre científico | nombre común (ejemplo: Citrus limon | limonero). Si no la identificas: "No identificada".
-🔎 PROBLEMA: qué podría tener, en una o dos frases.
-⚠️ RIESGO: bajo, medio o alto, y por qué en una frase.
-💡 QUÉ HACER: máximo 3 acciones, una línea cada una.
-📌 CONFIANZA: una frase (el diagnóstico visual es orientativo).
-
-Sin introducción ni cierre.
-
-CUANDO EL USUARIO PREGUNTE:
-Usa el diagnóstico anterior como contexto. Responde solo lo que pregunta,
-en máximo 2 párrafos cortos. Si recomiendas un producto químico, menciona su
-precaución principal. Sugiere un agrónomo solo si es necesario.
-`;
-
-function responder(res, status, datos) {
-  return res.status(status).json(datos);
+Responde SOLO con un JSON válido, sin texto extra y sin markdown, con esta estructura exacta:
+{
+  "planta": "nombre de la planta o 'No identificada'",
+  "estado": "Saludable" | "Atención" | "Enfermedad",
+  "diagnostico": "explicación corta y clara de lo que ves (máx. 3 frases)",
+  "posibles_causas": ["causa 1", "causa 2"],
+  "recomendaciones": ["acción 1", "acción 2", "acción 3"],
+  "confianza": "Alta" | "Media" | "Baja",
+  "mensaje_voz": "resumen hablado en español natural, cálido y breve (máx. 3 frases), SIN emojis, SIN símbolos y SIN listas"
 }
 
-function textosDe(contenido) {
-  return (Array.isArray(contenido) ? contenido : [])
-    .filter(parte => parte && parte.type === "text" && parte.text)
-    .map(parte => parte.text);
-}
+Si la imagen no muestra una planta, indícalo en "diagnostico" y pon estado "Atención" y confianza "Baja".
+Escribe todo en español.`;
 
-function obtenerTexto(interaccion) {
-  if (interaccion.output_text) {
-    return interaccion.output_text;
-  }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  // Formato "outputs": [{ type: "text", text: "..." }]
-  let textos = textosDe(interaccion.outputs);
-
-  // Formato "steps": [{ type: "model_output", content: [...] }]
-  if (!textos.length) {
-    textos = (interaccion.steps || [])
-      .filter(paso => paso.type === "model_output")
-      .flatMap(paso => textosDe(paso.content));
-  }
-
-  return textos.join("\n").trim();
-}
-
-function armarResultado(interaccion) {
-  const status = interaccion.status || "completed";
-
-  if (status === "failed" || status === "cancelled") {
-    throw new Error("Gemini no pudo completar el análisis.");
-  }
-
-  const respuesta = obtenerTexto(interaccion);
-
-  // Respuesta directa: ya viene el texto, no hace falta esperar
-  if (respuesta) {
-    return {
-      exito: true,
-      status: "completed",
-      interactionId: interaccion.id,
-      respuesta: respuesta
-    };
-  }
-
-  if (status === "completed") {
-    console.error("Gemini terminó sin texto. Campos:", Object.keys(interaccion));
-    throw new Error(
-      "Gemini respondió sin texto (campos: " +
-      Object.keys(interaccion).join(", ") + ")."
-    );
-  }
-
-  // Respaldo: si aun no esta lista, el frontend consulta con limite de tiempo
-  return {
-    exito: true,
-    status: status,
-    interactionId: interaccion.id
-  };
-}
-
-async function peticionGemini(ruta, opciones = {}) {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error(
-      "No está configurada GEMINI_API_KEY en Vercel."
-    );
-  }
-
-  const controlador = new AbortController();
-  const temporizador = setTimeout(() => controlador.abort(), TIEMPO_MAXIMO_MS);
-
-  let respuesta;
-  let datos;
-
-  try {
-    respuesta = await fetch(ruta, {
-      ...opciones,
-      signal: controlador.signal,
+async function llamarGemini(modelo, body) {
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
+    {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-        ...opciones.headers
+        "x-goog-api-key": process.env.GEMINI_API_KEY
+      },
+      body: JSON.stringify(body)
+    }
+  );
+
+  if (!r.ok) {
+    let detalle = "";
+    try {
+      detalle = await r.text();
+    } catch (_) {}
+    const e = new Error(`Gemini ${modelo} respondió ${r.status}: ${detalle.slice(0, 200)}`);
+    e.status = r.status;
+    throw e;
+  }
+  return r.json();
+}
+
+async function conRespaldo(body) {
+  let ultimoError;
+
+  for (const modelo of MODELOS) {
+    for (let intento = 0; intento < 2; intento++) {
+      try {
+        const data = await llamarGemini(modelo, body);
+        return { data, modelo };
+      } catch (e) {
+        ultimoError = e;
+        const temporal = [429, 500, 503, 504].includes(e.status);
+        const noExiste = e.status === 404;
+
+        if (noExiste) break;      // modelo inválido: pasa al siguiente
+        if (!temporal) throw e;   // key mala, imagen inválida, etc.
+
+        await sleep(800 * (intento + 1));
       }
-    });
-
-    datos = await respuesta.json();
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error(
-        "Gemini tardó demasiado en responder. Intenta de nuevo."
-      );
     }
-    throw error;
-  } finally {
-    clearTimeout(temporizador);
   }
-
-  if (!respuesta.ok) {
-    console.error("Error de Gemini:", datos);
-
-    throw new Error(
-      datos.error?.message ||
-      "Gemini no pudo procesar la solicitud."
-    );
-  }
-
-  return datos;
+  throw ultimoError || new Error("Todos los modelos están saturados");
 }
 
-
-// INICIAR UN DIAGNOSTICO
-
-async function iniciarDiagnostico(body) {
-  const imagen = body.imagen;
-
-  if (typeof imagen !== "string") {
-    throw new Error("No se recibió ninguna fotografía.");
+function limpiarJSON(texto) {
+  const limpio = texto.replace(/```json|```/g, "").trim();
+  try {
+    return JSON.parse(limpio);
+  } catch (_) {
+    const ini = limpio.indexOf("{");
+    const fin = limpio.lastIndexOf("}");
+    if (ini !== -1 && fin !== -1) return JSON.parse(limpio.slice(ini, fin + 1));
+    throw new Error("La respuesta de la IA no vino en formato JSON");
   }
-
-  const coincidencia = imagen.match(
-    /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/
-  );
-
-  if (!coincidencia) {
-    throw new Error("El formato de la fotografía no es válido.");
-  }
-
-  if (imagen.length > 4 * 1024 * 1024) {
-    throw new Error(
-      "La fotografía es demasiado grande. Intenta tomar otra."
-    );
-  }
-
-  const mimeType = "image/" + coincidencia[1];
-  const base64 = coincidencia[2];
-
-  const interaccion = await peticionGemini(URL_GEMINI, {
-    method: "POST",
-    body: JSON.stringify({
-      model: MODELO,
-      store: true,
-
-      system_instruction: INSTRUCCIONES,
-
-      generation_config: {
-        thinking_level: "low",
-        max_output_tokens: 900
-      },
-
-      input: [
-        {
-          type: "image",
-          mime_type: mimeType,
-          data: base64
-        },
-        {
-          type: "text",
-          text:
-            "Analiza esta fotografía y realiza un diagnóstico agrícola " +
-            "completo siguiendo tus instrucciones. Presenta el resultado " +
-            "con títulos claros y recomendaciones prácticas."
-        }
-      ]
-    })
-  });
-
-  if (!interaccion.id) {
-    throw new Error(
-      "Gemini no devolvió el identificador del análisis."
-    );
-  }
-
-  return armarResultado(interaccion);
 }
 
-
-// CONSULTAR EL ESTADO DEL ANALISIS
-
-async function consultarEstado(body) {
-  const id = String(body.interactionId || "");
-
-  if (!/^v1_[A-Za-z0-9_-]+$/.test(id) && !/^int_[A-Za-z0-9_-]+$/.test(id)) {
-    throw new Error("El identificador del análisis no es válido.");
-  }
-
-  const interaccion = await peticionGemini(
-    URL_GEMINI + "/" + encodeURIComponent(id),
-    {
-      method: "GET"
-    }
-  );
-
-  const status = interaccion.status || "in_progress";
-
-  if (status === "failed" || status === "cancelled") {
-    return {
-      exito: false,
-      status: status,
-      error: "Gemini no pudo completar el análisis."
-    };
-  }
-
-  if (status !== "completed") {
-    return {
-      exito: true,
-      status: status
-    };
-  }
-
-  const respuesta = obtenerTexto(interaccion);
-
-  return {
-    exito: true,
-    status: "completed",
-    interactionId: interaccion.id,
-    respuesta: respuesta
-  };
+// Quita emojis y símbolos para que la voz no los lea
+function limpiarParaVoz(texto = "") {
+  return texto
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, "")
+    .replace(/[*_#`~>|]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
+export default async function handler(req, res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-// CONTINUAR LA CONVERSACION
-
-async function preguntar(body) {
-  const id = String(body.interactionId || "");
-  const pregunta = String(body.pregunta || "").trim();
-
-  if (!/^v1_[A-Za-z0-9_-]+$/.test(id) && !/^int_[A-Za-z0-9_-]+$/.test(id)) {
-    throw new Error("No existe un diagnóstico válido para conversar.");
-  }
-
-  if (!pregunta) {
-    throw new Error("Escribe una pregunta.");
-  }
-
-  if (pregunta.length > 2000) {
-    throw new Error("La pregunta es demasiado larga.");
-  }
-
-  const interaccion = await peticionGemini(URL_GEMINI, {
-    method: "POST",
-    body: JSON.stringify({
-      model: MODELO,
-      store: true,
-
-      previous_interaction_id: id,
-
-      system_instruction: INSTRUCCIONES,
-
-      generation_config: {
-        thinking_level: "low",
-        max_output_tokens: 700
-      },
-
-      input: pregunta
-    })
-  });
-
-  if (!interaccion.id) {
-    throw new Error(
-      "Gemini no devolvió el identificador de la conversación."
-    );
-  }
-
-  return armarResultado(interaccion);
-}
-
-
-// CONTROLADOR PRINCIPAL
-
-module.exports = async function handler(req, res) {
+  if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") {
-    return responder(res, 405, {
-      exito: false,
-      error: "Método no permitido."
-    });
+    return res.status(405).json({ error: "Método no permitido" });
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Falta GEMINI_API_KEY en Vercel" });
   }
 
   try {
-    const body = req.body || {};
-
-    let resultado;
-
-    switch (body.accion) {
-      case "iniciar":
-        resultado = await iniciarDiagnostico(body);
-        break;
-
-      case "estado":
-        resultado = await consultarEstado(body);
-        break;
-
-      case "preguntar":
-        resultado = await preguntar(body);
-        break;
-
-      default:
-        return responder(res, 400, {
-          exito: false,
-          error: "Acción no válida."
-        });
+    // Acepta { imagen: "data:image/jpeg;base64,..." } o { image: "..." }
+    const entrada = req.body?.imagen || req.body?.image;
+    if (!entrada) {
+      return res.status(400).json({ error: "No se recibió ninguna imagen" });
     }
 
-    return responder(res, 200, resultado);
+    let mimeType = "image/jpeg";
+    let base64 = entrada;
+    const m = /^data:(.+?);base64,(.*)$/.exec(entrada);
+    if (m) {
+      mimeType = m[1];
+      base64 = m[2];
+    }
 
-  } catch (error) {
-    console.error("Error en Agrobot AI:", error);
+    const body = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: PROMPT },
+            { inline_data: { mime_type: mimeType, data: base64 } }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 1024,
+        responseMimeType: "application/json"
+      }
+    };
 
-    return responder(res, 500, {
-      exito: false,
-      error: error.message || "Error interno del servidor."
+    const { data, modelo } = await conRespaldo(body);
+
+    const texto = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+    if (!texto) throw new Error("Respuesta vacía de la IA");
+
+    const resultado = limpiarJSON(texto);
+    resultado.mensaje_voz = limpiarParaVoz(resultado.mensaje_voz || resultado.diagnostico || "");
+    resultado.modelo_usado = modelo;
+
+    return res.status(200).json(resultado);
+  } catch (e) {
+    console.error("Error en diagnostico:", e);
+
+    const saturado = [429, 500, 503, 504].includes(e.status);
+    return res.status(saturado ? 503 : 500).json({
+      error: saturado
+        ? "Hay mucha demanda en este momento. Intenta de nuevo en unos segundos."
+        : "No fue posible completar el análisis.",
+      detalle: e.message
     });
   }
-};
+}
