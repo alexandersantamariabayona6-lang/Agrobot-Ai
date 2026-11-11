@@ -6,12 +6,7 @@ export const config = {
   api: { bodyParser: { sizeLimit: "6mb" } }
 };
 
-// Modelo principal y respaldos (se prueban en orden)
-const MODELOS = [
-  "gemini-3.6-flash",
-  "gemini-3.6-flash-lite",
-  "gemini-2.5-flash"
-];
+const MODELO = "gemini-2.5-flash";
 
 const PROMPT = `Eres AgroBot AI, un agrónomo experto. Analiza la imagen de una planta, hoja, fruto o árbol (cualquier especie, no solo limonero).
 Fíjate en: color y forma de las hojas, nervaduras, manchas, bordes quemados, plagas visibles, estado del fruto y del tallo.
@@ -32,9 +27,9 @@ Escribe todo en español.`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function llamarGemini(modelo, body) {
+async function llamarGemini(body) {
   const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
     {
       method: "POST",
       headers: {
@@ -50,34 +45,27 @@ async function llamarGemini(modelo, body) {
     try {
       detalle = await r.text();
     } catch (_) {}
-    const e = new Error(`Gemini ${modelo} respondió ${r.status}: ${detalle.slice(0, 200)}`);
+    const e = new Error(`Gemini respondió ${r.status}: ${detalle.slice(0, 300)}`);
     e.status = r.status;
     throw e;
   }
   return r.json();
 }
 
-async function conRespaldo(body) {
+// Reintenta solo si hay saturación temporal
+async function conReintentos(body) {
   let ultimoError;
-
-  for (const modelo of MODELOS) {
-    for (let intento = 0; intento < 2; intento++) {
-      try {
-        const data = await llamarGemini(modelo, body);
-        return { data, modelo };
-      } catch (e) {
-        ultimoError = e;
-        const temporal = [429, 500, 503, 504].includes(e.status);
-        const noExiste = e.status === 404;
-
-        if (noExiste) break;      // modelo inválido: pasa al siguiente
-        if (!temporal) throw e;   // key mala, imagen inválida, etc.
-
-        await sleep(800 * (intento + 1));
-      }
+  for (let intento = 0; intento < 3; intento++) {
+    try {
+      return await llamarGemini(body);
+    } catch (e) {
+      ultimoError = e;
+      const temporal = [429, 500, 503, 504].includes(e.status);
+      if (!temporal) throw e;
+      await sleep(1000 * (intento + 1));
     }
   }
-  throw ultimoError || new Error("Todos los modelos están saturados");
+  throw ultimoError;
 }
 
 function limpiarJSON(texto) {
@@ -116,10 +104,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Acepta { imagen: "data:image/jpeg;base64,..." } o { image: "..." }
-    const entrada = req.body?.imagen || req.body?.image;
+    // Acepta varios nombres de campo por si el front usa otro
+    const entrada =
+      req.body?.imagen || req.body?.image || req.body?.foto || req.body?.base64;
+
     if (!entrada) {
-      return res.status(400).json({ error: "No se recibió ninguna imagen" });
+      return res.status(400).json({
+        error: "No se recibió ninguna imagen",
+        detalle: "Campos recibidos: " + Object.keys(req.body || {}).join(", ")
+      });
     }
 
     let mimeType = "image/jpeg";
@@ -142,19 +135,21 @@ export default async function handler(req, res) {
       ],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,
         responseMimeType: "application/json"
       }
     };
 
-    const { data, modelo } = await conRespaldo(body);
+    const data = await conReintentos(body);
 
-    const texto = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
+    const texto =
+      data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
     if (!texto) throw new Error("Respuesta vacía de la IA");
 
     const resultado = limpiarJSON(texto);
-    resultado.mensaje_voz = limpiarParaVoz(resultado.mensaje_voz || resultado.diagnostico || "");
-    resultado.modelo_usado = modelo;
+    resultado.mensaje_voz = limpiarParaVoz(
+      resultado.mensaje_voz || resultado.diagnostico || ""
+    );
 
     return res.status(200).json(resultado);
   } catch (e) {
