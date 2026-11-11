@@ -13,7 +13,7 @@ CUANDO RECIBAS UNA FOTO:
 Analiza solo lo que se ve. Si no estás seguro, dilo. No inventes datos.
 Responde CORTO, máximo 90 palabras, con exactamente este formato:
 
-🌱 PLANTA: nombre o "No identificada".
+🌱 PLANTA: nombre científico | nombre común (ejemplo: Citrus limon | limonero). Si no la identificas: "No identificada".
 🔎 PROBLEMA: qué podría tener, en una o dos frases.
 ⚠️ RIESGO: bajo, medio o alto, y por qué en una frase.
 💡 QUÉ HACER: máximo 3 acciones, una línea cada una.

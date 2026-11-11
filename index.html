@@ -60,12 +60,36 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .acciones{display:flex;gap:10px;margin-top:16px}.acciones button{flex:1;padding:12px}
 .voz{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:13px;color:var(--suave)}
 select{flex:1;min-width:0;border:1px solid var(--linea);border-radius:12px;padding:8px;background:#fff;font:inherit;color:var(--tinta)}
-.chat-mensajes{display:flex;flex-direction:column;gap:10px;max-height:44vh;overflow-y:auto;margin:14px 0;padding:4px}
-.mensaje{max-width:86%;padding:11px 15px;border-radius:18px;font-size:15.5px;white-space:pre-wrap}
+.chat-cab{display:flex;align-items:center;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--linea)}
+.chat-cab>div:nth-child(3){flex:1;min-width:0}.chat-cab strong{display:block;font:600 19px Fraunces,Georgia,serif;color:var(--hoja)}.chat-cab small{font-size:13px;color:var(--suave)}
+.orbe{position:relative;width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 30% 25%,var(--savia),var(--hoja2) 72%);display:flex;align-items:center;justify-content:center;gap:3px;flex:none}
+.orbe::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--savia);opacity:0}
+.orbe i{width:4px;height:8px;border-radius:3px;background:#fff}
+[data-estado=escuchando] .orbe::before{animation:anillo 1.3s ease-out infinite}
+[data-estado=hablando] .orbe i{animation:onda .9s ease-in-out infinite}
+.orbe i:nth-child(2){animation-delay:.12s}.orbe i:nth-child(3){animation-delay:.24s}.orbe i:nth-child(4){animation-delay:.36s}.orbe i:nth-child(5){animation-delay:.48s}
+[data-estado=pensando] .orbe{animation:late 1s ease-in-out infinite}
+@keyframes anillo{from{transform:scale(.85);opacity:.9}to{transform:scale(1.4);opacity:0}}
+@keyframes onda{0%,100%{height:8px}50%{height:26px}}
+@keyframes late{50%{transform:scale(1.09)}}
+.detener{display:none;width:40px;height:40px;padding:0;border-radius:50%;background:#fde8e4;color:var(--alto);place-items:center}.detener:hover{background:#f9d6cf}
+[data-estado=hablando] .detener{display:grid}.detener svg{width:16px;height:16px}
+.chat-mensajes{display:flex;flex-direction:column;gap:10px;min-height:30vh;max-height:46vh;overflow-y:auto;margin:14px 0 8px;padding:4px}
+.mensaje{max-width:88%;padding:11px 15px;border-radius:18px;font-size:15.5px;white-space:pre-wrap}
 .mensaje.agrobot{background:#eaf2df;align-self:flex-start;border-bottom-left-radius:5px}
 .mensaje.usuario{background:var(--hoja);color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
-.entrada-chat{display:flex;gap:8px}
-.entrada-chat input{flex:1;min-width:0;border:1px solid var(--linea);border-radius:999px;padding:13px 18px;font:inherit;background:#fff}
+.replay{display:inline-grid;width:28px;height:28px;padding:0;margin-left:8px;vertical-align:middle;background:rgba(31,93,58,.1);color:var(--hoja);place-items:center}.replay svg{width:14px;height:14px}
+.puntos{display:flex;gap:5px;padding:14px 16px}.puntos i{width:7px;height:7px;border-radius:50%;background:var(--hoja2);animation:salto 1s infinite}
+.puntos i:nth-child(2){animation-delay:.15s}.puntos i:nth-child(3){animation-delay:.3s}
+@keyframes salto{0%,60%,100%{transform:none}30%{transform:translateY(-6px)}}
+.sugerencias{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.chip{flex:none;padding:8px 14px;font-size:14px;background:#fff;color:var(--hoja);border:1px solid var(--linea)}.chip:hover{background:#f3f9df}
+.entrada-chat{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--linea);border-radius:999px;padding:6px 6px 6px 18px}
+.entrada-chat:focus-within{outline:3px solid var(--savia)}
+.entrada-chat input{flex:1;min-width:0;border:0;background:none;font:inherit;padding:8px 0;outline:none}
+.mic,.enviar{width:46px;height:46px;padding:0;display:grid;place-items:center;flex:none}.mic svg,.enviar svg{width:22px;height:22px}
+.mic{background:#e6eedc;color:var(--hoja)}.mic.activo{background:var(--alto);color:#fff;animation:late 1s infinite}
+.ficha-cab em{display:block;font-size:14px;color:var(--suave)}
 footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.escaner::after{top:50%}}
   </style>
@@ -126,7 +150,7 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
     <div class="card">
       <div class="ficha-cab">
         <img id="fotoResultado" alt="Tu planta">
-        <div><small>Planta detectada</small><strong id="nombrePlanta">...</strong><span class="riesgo" id="badgeRiesgo"></span></div>
+        <div><small>Planta detectada</small><strong id="nombrePlanta">...</strong><em id="nombreCientifico"></em><span class="riesgo" id="badgeRiesgo"></span></div>
       </div>
       <div id="textoResultado"></div>
       <div class="acciones">
@@ -139,21 +163,26 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
     </div>
   </section>
 
-  <section id="pantallaChat" class="screen">
+  <section id="pantallaChat" class="screen" data-estado="reposo">
     <div class="card">
-      <h2>Conversa con Agrobot</h2>
-      <p>Pregunta por el tratamiento, los cuidados o la prevención.</p>
+      <div class="chat-cab">
+        <button class="secundario icono" onclick="volverResultado()" aria-label="Volver al diagnóstico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <div class="orbe" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <div><strong>Agrobot</strong><small id="estadoChat">Listo para ayudarte</small></div>
+        <button class="detener" onclick="detenerVoz()" aria-label="Detener voz"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="3"/></svg></button>
+      </div>
       <div id="mensajes" class="chat-mensajes"></div>
+      <div class="sugerencias">
+        <button class="chip" onclick="sugerir(this.textContent)">¿Cómo lo trato?</button>
+        <button class="chip" onclick="sugerir(this.textContent)">¿Es contagioso?</button>
+        <button class="chip" onclick="sugerir(this.textContent)">¿Cómo lo prevengo?</button>
+        <button class="chip" onclick="sugerir(this.textContent)">¿Cada cuánto lo riego?</button>
+      </div>
       <div class="entrada-chat">
-        <input id="pregunta" type="text" placeholder="Escribe tu pregunta..." onkeydown="if(event.key==='Enter') enviarPregunta()">
-        <button onclick="enviarPregunta()">Enviar</button>
+        <input id="pregunta" type="text" placeholder="Escribe o toca el micrófono" onkeydown="if(event.key==='Enter') enviarPregunta()">
+        <button class="mic" id="btnVoz" onclick="escucharPregunta()" aria-label="Hablar con Agrobot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+        <button class="enviar" onclick="enviarPregunta()" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
       </div>
-      <div class="acciones">
-        <button class="secundario" id="btnVoz" onclick="escucharPregunta()">Hablar</button>
-        <button class="secundario" onclick="detenerVoz()">Callar voz</button>
-      </div>
-      <p class="estado" id="estadoChat"></p>
-      <button class="ancho secundario" onclick="volverResultado()">Volver al diagnóstico</button>
     </div>
   </section>
 
@@ -208,6 +237,12 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
   // VOZ DE AGROBOT
 
   let vozElegida = null;
+  let ultimoDatos = null;
+
+  function ponerEstado(estado, texto) {
+    $("pantallaChat").dataset.estado = estado;
+    if (texto) $("estadoChat").textContent = texto;
+  }
   let colaVoz = 0;
 
   function limpiarParaVoz(texto) {
@@ -283,7 +318,14 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
     let i = 0;
 
     const siguiente = () => {
-      if (id !== colaVoz || i >= frases.length) return;
+      if (id !== colaVoz) return;
+
+      if (i >= frases.length) {
+        if ($("pantallaChat").dataset.estado === "hablando") {
+          ponerEstado("reposo", "Listo para ayudarte");
+        }
+        return;
+      }
 
       const frase = frases[i++].trim();
       if (!frase) return siguiente();
@@ -296,6 +338,10 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
       voz.onend = () => setTimeout(siguiente, 140);
       voz.onerror = () => setTimeout(siguiente, 140);
 
+      if ($("pantallaChat").dataset.estado !== "pensando") {
+        ponerEstado("hablando", "Hablando...");
+      }
+
       speechSynthesis.speak(voz);
     };
 
@@ -304,6 +350,9 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
 
   function detenerVoz() {
     colaVoz++;
+    if ($("pantallaChat").dataset.estado === "hablando") {
+      ponerEstado("reposo", "Listo para ayudarte");
+    }
     if ("speechSynthesis" in window) {
       speechSynthesis.cancel();
     }
@@ -318,6 +367,7 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
     let actual = null;
 
     caja.textContent = "";
+    ultimoDatos = null;
 
     texto.split("\n").forEach(linea => {
       const m = linea.replace(/[*_#]/g, "").trim()
@@ -366,7 +416,23 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
       return;
     }
 
-    $("nombrePlanta").textContent = (datos.planta || "No identificada").replace(/\.$/, "");
+    const planta = (datos.planta || "No identificada").replace(/\.$/, "").trim();
+    let partes = planta.split("|").map(x => x.trim());
+
+    if (partes.length < 2) {
+      const m = planta.match(/^(.*?)\s*\((.+)\)$/);
+      // "Limonero (Citrus limon)": lo de paréntesis es el nombre científico
+      partes = m ? [m[2].trim(), m[1].trim()] : [planta];
+    }
+
+    const cientifico = partes.length > 1 ? partes[0] : "";
+    const comun = partes.length > 1 ? partes[1] : partes[0];
+
+    $("nombrePlanta").textContent = comun.charAt(0).toUpperCase() + comun.slice(1);
+    $("nombreCientifico").textContent = cientifico;
+
+    ultimoDatos = { cientifico, comun, problema: datos.problema,
+      riesgo: datos.riesgo, que: datos.que, conf: datos.conf };
 
     const nivel = (datos.riesgo || "").toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/alto|medio|bajo/);
@@ -382,9 +448,25 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
     if (datos.conf) bloque("conf", "Qué tan seguro es", datos.conf);
   }
 
+  function textoParaLeer() {
+    const d = ultimoDatos;
+    if (!d) return textoDiagnostico;
+
+    const t = [d.cientifico
+      ? "Planta: " + d.cientifico + ", que se conoce comúnmente como " + d.comun + "."
+      : "Planta: " + d.comun + "."];
+
+    if (d.problema) t.push("Problema: " + d.problema);
+    if (d.riesgo) t.push("Riesgo: " + d.riesgo);
+    if (d.que) t.push("Qué hacer: " + d.que);
+    if (d.conf) t.push("Confianza: " + d.conf);
+
+    return t.join("\n");
+  }
+
   function leerResultado() {
     if (textoDiagnostico) {
-      hablar(textoDiagnostico);
+      hablar(textoParaLeer());
     }
   }
 
@@ -691,6 +773,7 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
     detenerVoz();
 
     mostrarPantalla("pantallaChat");
+    ponerEstado("reposo", "Listo para ayudarte");
 
     if (!$("mensajes").children.length) {
       agregarMensaje(
@@ -713,16 +796,41 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
 
   function agregarMensaje(tipo, texto) {
     const mensaje = document.createElement("div");
+    const t = document.createElement("span");
 
     mensaje.className = "mensaje " + tipo;
-    mensaje.textContent = texto;
+    t.textContent = texto;
+    mensaje.appendChild(t);
+
+    if (tipo === "agrobot") {
+      const b = document.createElement("button");
+      b.className = "replay";
+      b.setAttribute("aria-label", "Escuchar esta respuesta");
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
+      b.onclick = () => hablar(texto);
+      mensaje.appendChild(b);
+    }
 
     $("mensajes").appendChild(mensaje);
+    mensaje.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
 
-    mensaje.scrollIntoView({
-      behavior: "smooth",
-      block: "end"
-    });
+  function mostrarEscribiendo(si) {
+    const previo = $("escribiendo");
+    if (previo) previo.remove();
+    if (!si) return;
+
+    const d = document.createElement("div");
+    d.id = "escribiendo";
+    d.className = "mensaje agrobot puntos";
+    d.innerHTML = "<i></i><i></i><i></i>";
+    $("mensajes").appendChild(d);
+    d.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  function sugerir(texto) {
+    $("pregunta").value = texto;
+    enviarPregunta();
   }
 
   async function enviarPregunta() {
@@ -730,12 +838,11 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
 
     if (!pregunta || !interaccionId) return;
 
+    detenerVoz();
     $("pregunta").value = "";
-
     agregarMensaje("usuario", pregunta);
-
-    $("estadoChat").textContent = "Agrobot está preparando una respuesta...";
-
+    mostrarEscribiendo(true);
+    ponerEstado("pensando", "Pensando tu respuesta...");
     $("estadoHeader").textContent = "Respondiendo";
 
     try {
@@ -751,21 +858,17 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
 
       interaccionId = inicio.interactionId;
 
+      mostrarEscribiendo(false);
       agregarMensaje("agrobot", resultado.respuesta);
-
-      $("estadoChat").textContent = "Respuesta recibida.";
-
+      ponerEstado("reposo", "Listo para otra pregunta");
       $("estadoHeader").textContent = "Conversando";
 
       hablar(resultado.respuesta);
 
     } catch (error) {
-      agregarMensaje(
-        "agrobot",
-        "No pude completar tu respuesta: " + error.message
-      );
-
-      $("estadoChat").textContent = error.message;
+      mostrarEscribiendo(false);
+      agregarMensaje("agrobot", "No pude responder: " + error.message);
+      ponerEstado("reposo", "Intenta de nuevo");
     }
   }
 
@@ -774,12 +877,10 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
 
   function escucharPregunta() {
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      $("estadoChat").textContent =
-        "Tu navegador no admite reconocimiento de voz. Puedes escribir tu pregunta.";
+      ponerEstado("reposo", "Tu navegador no admite voz. Escribe tu pregunta.");
       return;
     }
 
@@ -788,35 +889,42 @@ footer{text-align:center;font-size:12px;color:var(--suave);padding:0 20px 20px}
       return;
     }
 
-    reconocimiento = new SpeechRecognition();
+    detenerVoz();
 
+    reconocimiento = new SpeechRecognition();
     reconocimiento.lang = "es-CO";
     reconocimiento.continuous = false;
-    reconocimiento.interimResults = false;
+    reconocimiento.interimResults = true;
 
     reconocimiento.onstart = function() {
       reconociendo = true;
-
-      $("btnVoz").textContent = "Escuchando...";
-      $("estadoChat").textContent = "Te estoy escuchando...";
+      $("btnVoz").classList.add("activo");
+      ponerEstado("escuchando", "Te escucho...");
     };
 
     reconocimiento.onresult = function(event) {
-      const texto = event.results[0][0].transcript;
+      let texto = "";
+
+      for (const r of event.results) texto += r[0].transcript;
 
       $("pregunta").value = texto;
 
-      enviarPregunta();
+      if (event.results[event.results.length - 1].isFinal) {
+        enviarPregunta();
+      }
     };
 
     reconocimiento.onerror = function() {
-      $("estadoChat").textContent =
-        "No pude reconocer tu voz. Intenta nuevamente o escribe tu pregunta.";
+      ponerEstado("reposo", "No te escuché bien. Intenta de nuevo o escribe.");
     };
 
     reconocimiento.onend = function() {
       reconociendo = false;
-      $("btnVoz").textContent = "Hablar";
+      $("btnVoz").classList.remove("activo");
+
+      if ($("pantallaChat").dataset.estado === "escuchando") {
+        ponerEstado("reposo", "Listo para ayudarte");
+      }
     };
 
     reconocimiento.start();
